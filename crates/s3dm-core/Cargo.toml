@@ -1,0 +1,15 @@
+[package]
+name = "s3dm-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+aws-sdk-s3 = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+chrono = { workspace = true }
+bytes = { workspace = true }
+uuid = { workspace = true }
+aws-smithy-types = { workspace = true }
+log = { workspace = true }
