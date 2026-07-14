@@ -25,7 +25,13 @@ impl ConnectionConfig {
         force_path_style: bool,
     ) -> Self {
         let id = Uuid::new_v4().to_string();
-        log::info!("Creating connection config id={} name={} endpoint={} force_path_style={}", id, name, endpoint, force_path_style);
+        log::info!(
+            "Creating connection config id={} name={} endpoint={} force_path_style={}",
+            id,
+            name,
+            endpoint,
+            force_path_style
+        );
         Self {
             id,
             name,
@@ -51,7 +57,10 @@ impl ConnectionConfig {
             return Err(ConfigError::Validation("Access Key ID 不能为空".into()));
         }
         if self.secret_access_key.trim().is_empty() {
-            log::warn!("Validation failed: secret access key is empty id={}", self.id);
+            log::warn!(
+                "Validation failed: secret access key is empty id={}",
+                self.id
+            );
             return Err(ConfigError::Validation("Secret Access Key 不能为空".into()));
         }
         log::debug!("Validation passed id={}", self.id);
@@ -151,7 +160,11 @@ impl ConfigStore {
     }
 
     pub fn delete(&mut self, id: &str) -> Result<(), ConfigError> {
-        let name = self.connections.iter().find(|c| c.id == id).map(|c| c.name.clone());
+        let name = self
+            .connections
+            .iter()
+            .find(|c| c.id == id)
+            .map(|c| c.name.clone());
         log::info!("Deleting connection: id={} name={:?}", id, name);
         self.connections.retain(|c| c.id != id);
         self.save()

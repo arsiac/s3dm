@@ -73,13 +73,7 @@ impl S3Manager {
             force_path_style
         );
         let runtime = Arc::new(tokio::runtime::Runtime::new().unwrap());
-        let creds = Credentials::new(
-            access_key_id,
-            secret_access_key,
-            None,
-            None,
-            "s3dm",
-        );
+        let creds = Credentials::new(access_key_id, secret_access_key, None, None, "s3dm");
 
         let client = runtime.block_on(async {
             let config = aws_sdk_s3::config::Config::builder()
@@ -99,15 +93,10 @@ impl S3Manager {
     pub fn list_buckets(&self) -> Result<Vec<S3Bucket>, CoreError> {
         log::info!("Listing all buckets");
         self.run(async {
-            let resp = self
-                .client
-                .list_buckets()
-                .send()
-                .await
-                .map_err(|e| {
-                    log::error!("Failed to list buckets: {}", e);
-                    CoreError::S3(e.to_string())
-                })?;
+            let resp = self.client.list_buckets().send().await.map_err(|e| {
+                log::error!("Failed to list buckets: {}", e);
+                CoreError::S3(e.to_string())
+            })?;
 
             let buckets: Vec<S3Bucket> = resp
                 .buckets()
@@ -117,7 +106,7 @@ impl S3Manager {
                     log::debug!("Found bucket: {}", name);
                     S3Bucket {
                         name,
-                        creation_date: b.creation_date().and_then(|d| to_chrono(d)),
+                        creation_date: b.creation_date().and_then(to_chrono),
                     }
                 })
                 .collect();
@@ -174,8 +163,8 @@ impl S3Manager {
                     log::debug!("Found object: {}", key);
                     S3Object {
                         key,
-                        size: o.size().unwrap_or(0) as i64,
-                        last_modified: o.last_modified().and_then(|d| to_chrono(d)),
+                        size: o.size().unwrap_or(0),
+                        last_modified: o.last_modified().and_then(to_chrono),
                         is_folder: false,
                         etag: o.e_tag().map(|s| s.to_string()),
                     }
@@ -195,9 +184,7 @@ impl S3Manager {
                 .collect();
 
             let is_truncated = resp.is_truncated().unwrap_or(false);
-            let continuation_token = resp
-                .next_continuation_token()
-                .map(|s| s.to_string());
+            let continuation_token = resp.next_continuation_token().map(|s| s.to_string());
 
             log::info!(
                 "Successfully listed objects: {} files, {} folders, truncated: {}",
@@ -225,7 +212,12 @@ impl S3Manager {
                 .send()
                 .await
                 .map_err(|e| {
-                    log::error!("Failed to delete object bucket={} key={}: {}", bucket, key, e);
+                    log::error!(
+                        "Failed to delete object bucket={} key={}: {}",
+                        bucket,
+                        key,
+                        e
+                    );
                     CoreError::S3(e.to_string())
                 })?;
             log::debug!("Object deleted successfully bucket={} key={}", bucket, key);
@@ -244,7 +236,12 @@ impl S3Manager {
                 .send()
                 .await
                 .map_err(|e| {
-                    log::error!("Failed to download object bucket={} key={}: {}", bucket, key, e);
+                    log::error!(
+                        "Failed to download object bucket={} key={}: {}",
+                        bucket,
+                        key,
+                        e
+                    );
                     CoreError::S3(e.to_string())
                 })?;
 
@@ -253,24 +250,34 @@ impl S3Manager {
                 .collect()
                 .await
                 .map_err(|e| {
-                    log::error!("Failed to read object stream bucket={} key={}: {}", bucket, key, e);
+                    log::error!(
+                        "Failed to read object stream bucket={} key={}: {}",
+                        bucket,
+                        key,
+                        e
+                    );
                     CoreError::S3(e.to_string())
                 })?
                 .into_bytes()
                 .to_vec();
 
-            log::info!("Object downloaded successfully bucket={} key={} size={}", bucket, key, data.len());
+            log::info!(
+                "Object downloaded successfully bucket={} key={} size={}",
+                bucket,
+                key,
+                data.len()
+            );
             Ok(data)
         })
     }
 
-    pub fn put_object(
-        &self,
-        bucket: &str,
-        key: &str,
-        data: Vec<u8>,
-    ) -> Result<(), CoreError> {
-        log::info!("Uploading object bucket={} key={} size={}", bucket, key, data.len());
+    pub fn put_object(&self, bucket: &str, key: &str, data: Vec<u8>) -> Result<(), CoreError> {
+        log::info!(
+            "Uploading object bucket={} key={} size={}",
+            bucket,
+            key,
+            data.len()
+        );
         self.run(async {
             self.client
                 .put_object()
@@ -280,7 +287,12 @@ impl S3Manager {
                 .send()
                 .await
                 .map_err(|e| {
-                    log::error!("Failed to upload object bucket={} key={}: {}", bucket, key, e);
+                    log::error!(
+                        "Failed to upload object bucket={} key={}: {}",
+                        bucket,
+                        key,
+                        e
+                    );
                     CoreError::S3(e.to_string())
                 })?;
             log::info!("Object uploaded successfully bucket={} key={}", bucket, key);
@@ -299,17 +311,27 @@ impl S3Manager {
                 .send()
                 .await
                 .map_err(|e| {
-                    log::error!("Failed to query object metadata bucket={} key={}: {}", bucket, key, e);
+                    log::error!(
+                        "Failed to query object metadata bucket={} key={}: {}",
+                        bucket,
+                        key,
+                        e
+                    );
                     CoreError::S3(e.to_string())
                 })?;
 
             let size = resp.content_length().unwrap_or(0) as i64;
-            log::debug!("Object metadata: bucket={} key={} size={}", bucket, key, size);
+            log::debug!(
+                "Object metadata: bucket={} key={} size={}",
+                bucket,
+                key,
+                size
+            );
 
             Ok(S3Object {
                 key: key.to_string(),
                 size,
-                last_modified: resp.last_modified().and_then(|d| to_chrono(d)),
+                last_modified: resp.last_modified().and_then(to_chrono),
                 is_folder: false,
                 etag: resp.e_tag().map(|s| s.to_string()),
             })

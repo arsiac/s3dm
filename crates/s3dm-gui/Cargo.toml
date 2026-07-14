@@ -9,3 +9,5 @@ s3dm-core = { workspace = true }
 s3dm-config = { workspace = true }
 chrono = { workspace = true }
 log = { workspace = true }
+rust-i18n = { workspace = true }
+sys-locale = { workspace = true }

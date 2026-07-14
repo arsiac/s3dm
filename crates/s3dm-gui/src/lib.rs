@@ -1,8 +1,10 @@
-
 use iced::{
-    widget::{button, column, container, row, rule, scrollable, text, text_input, toggler},
     Element, Padding, Task, Theme,
+    widget::{button, column, container, row, rule, scrollable, text, text_input, toggler},
 };
+use rust_i18n::t;
+
+rust_i18n::i18n!("locales");
 use s3dm_config::ConfigStore;
 use s3dm_core::{CoreError, ObjectListResult, S3Bucket, S3Manager, S3Object};
 
@@ -67,7 +69,10 @@ pub enum Message {
     ConnectionAdd,
     ConnectionEdit(String),
     ConnectionDelete(String),
-    ConnectionFormChanged { field: String, value: String },
+    ConnectionFormChanged {
+        field: String,
+        value: String,
+    },
     ConnectionFormSave,
     ConnectionFormCancel,
     Connected {
@@ -136,7 +141,25 @@ impl App {
 }
 
 pub fn boot() -> (App, Task<Message>) {
-    log::info!("Initializing S3DM application");
+    let locale = sys_locale::get_locale().unwrap_or_default();
+    let lang = locale.split('-').next().unwrap_or("en");
+    match lang {
+        "zh" => {
+            if locale.starts_with("zh-TW")
+                || locale.starts_with("zh-HK")
+                || locale.starts_with("zh-Hant")
+            {
+                rust_i18n::set_locale("zh-TW");
+            } else {
+                rust_i18n::set_locale("zh-CN");
+            }
+        }
+        _ => rust_i18n::set_locale("en"),
+    }
+    log::info!(
+        "Initializing S3DM application (locale: {})",
+        &*rust_i18n::locale()
+    );
     let app = App {
         config_store: ConfigStore::new(),
         current_page: Page::Connections,
@@ -206,10 +229,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             app.is_loading = false;
             match buckets {
                 Ok(list) => {
-                    log::info!(
-                        "Connected successfully, got {} buckets",
-                        list.len()
-                    );
+                    log::info!("Connected successfully, got {} buckets", list.len());
                     app.s3_manager = Some(manager);
                     app.buckets = list;
                     app.selected_connection_id = Some(connection_id);
@@ -217,7 +237,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 }
                 Err(e) => {
                     log::error!("Connection failed: {}", e);
-                    app.error_message = Some(format!("连接失败: {}", e));
+                    app.error_message =
+                        Some(t!("connection_failed", error = e.to_string()).to_string());
                 }
             }
             Task::none()
@@ -248,7 +269,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             log::info!("Deleting connection: id={}", id);
             if let Err(e) = app.config_store.delete(&id) {
                 log::error!("Delete connection failed: {}", e);
-                app.error_message = Some(format!("删除连接失败: {}", e));
+                app.error_message =
+                    Some(t!("delete_connection_failed", error = e.to_string()).to_string());
             }
             Task::none()
         }
@@ -276,7 +298,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 };
                 if let Err(e) = result {
                     log::error!("Save connection failed: {}", e);
-                    app.error_message = Some(format!("保存连接失败: {}", e));
+                    app.error_message =
+                        Some(t!("save_connection_failed", error = e.to_string()).to_string());
                 }
             }
             Task::none()
@@ -367,7 +390,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 }
                 Err(e) => {
                     log::error!("Failed to load objects: {}", e);
-                    app.error_message = Some(format!("加载对象失败: {}", e));
+                    app.error_message =
+                        Some(t!("load_objects_failed", error = e.to_string()).to_string());
                 }
             }
             Task::none()
@@ -394,7 +418,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             }
             Err(e) => {
                 log::error!("Failed to delete object: {}", e);
-                app.error_message = Some(format!("删除失败: {}", e));
+                app.error_message = Some(t!("delete_failed", error = e.to_string()).to_string());
                 Task::none()
             }
         },
@@ -411,7 +435,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             };
             if path.is_empty() {
                 log::warn!("Upload file path is empty");
-                app.error_message = Some("请选择文件路径".into());
+                app.error_message = Some(t!("select_file_path").to_string());
                 return Task::none();
             }
             let key = format!(
@@ -427,7 +451,9 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                         Ok(data) => s3.put_object(&bucket, &key, data),
                         Err(e) => {
                             log::error!("Failed to read local file: {}: {}", path, e);
-                            Err(CoreError::S3(format!("读取文件失败: {}", e)))
+                            Err(CoreError::S3(
+                                t!("read_file_failed", error = e.to_string()).to_string(),
+                            ))
                         }
                     }
                 },
@@ -444,7 +470,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 }
                 Err(e) => {
                     log::error!("Upload failed: {}", e);
-                    app.error_message = Some(format!("上传失败: {}", e));
+                    app.error_message =
+                        Some(t!("upload_failed", error = e.to_string()).to_string());
                 }
             }
             Task::none()
@@ -461,7 +488,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             };
             if path.is_empty() {
                 log::warn!("Download save path is empty");
-                app.error_message = Some("请设置下载保存路径".into());
+                app.error_message = Some(t!("set_download_path").to_string());
                 return Task::none();
             }
             log::info!("Downloading object: {} -> {}", key, path);
@@ -481,7 +508,11 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 Ok(bytes) => {
                     let path = app.download_path.clone();
                     let save_path = if path.ends_with('/') {
-                        format!("{}{}", path, key.rsplit_once('/').map(|(_, f)| f).unwrap_or(&key))
+                        format!(
+                            "{}{}",
+                            path,
+                            key.rsplit_once('/').map(|(_, f)| f).unwrap_or(&key)
+                        )
                     } else {
                         path
                     };
@@ -493,7 +524,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 }
                 Err(e) => {
                     log::error!("Failed to download object: {}", e);
-                    app.error_message = Some(format!("下载失败: {}", e));
+                    app.error_message =
+                        Some(t!("download_failed", error = e.to_string()).to_string());
                     Task::none()
                 }
             }
@@ -519,7 +551,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if let Some(err) = &app.error_message {
         let error_bar = container(
             row![
-                text(format!("Error: {}", err)).color(iced::Color::WHITE),
+                text(t!("error", message = err.as_str()).to_string()).color(iced::Color::WHITE),
                 button("×").on_press(Message::ClearError),
             ]
             .spacing(10)
@@ -527,7 +559,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         )
         .padding(10)
         .style(|_theme: &Theme| container::Style {
-            background: Some(iced::Background::Color(iced::Color::from_rgb(0.8, 0.2, 0.2))),
+            background: Some(iced::Background::Color(iced::Color::from_rgb(
+                0.8, 0.2, 0.2,
+            ))),
             text_color: Some(iced::Color::WHITE),
             ..Default::default()
         })
@@ -543,7 +577,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     elements.push(page_content);
 
     if app.is_loading {
-        let loading = container(text("Loading...").size(24))
+        let loading = container(text(t!("loading").to_string()).size(24))
             .width(iced::Length::Fill)
             .height(iced::Length::Fill)
             .center_x(iced::Length::Fill)
@@ -559,8 +593,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 fn view_connections(app: &App) -> Element<'_, Message> {
     let header = row![
-        text("Connections").size(24),
-        button("+ Add Connection").on_press(Message::ConnectionAdd),
+        text(t!("connections").to_string()).size(24),
+        button(text(t!("add_connection").to_string())).on_press(Message::ConnectionAdd),
     ]
     .spacing(10)
     .align_y(iced::Alignment::Center);
@@ -568,50 +602,58 @@ fn view_connections(app: &App) -> Element<'_, Message> {
     let mut content = column![header].spacing(10);
 
     if let Some(form) = &app.connection_form {
+        let placeholder_name = t!("name").to_string();
+        let placeholder_endpoint = t!("endpoint_hint").to_string();
+        let placeholder_region = t!("region").to_string();
+        let placeholder_ak = t!("access_key_id").to_string();
+        let placeholder_sk = t!("secret_access_key").to_string();
+
         let fields = column![
             text(if form.id.is_some() {
-                "Edit Connection"
+                t!("edit_connection_title").to_string()
             } else {
-                "Add Connection"
+                t!("add_connection_title").to_string()
             })
             .size(18),
-            text_input("Name", &form.name).on_input(|v| {
+            text_input(&placeholder_name, &form.name).on_input(|v| {
                 Message::ConnectionFormChanged {
                     field: "name".into(),
                     value: v,
                 }
             }),
-            text_input("Endpoint (e.g. https://s3.example.com)", &form.endpoint).on_input(
-                |v| Message::ConnectionFormChanged {
+            text_input(&placeholder_endpoint, &form.endpoint).on_input(|v| {
+                Message::ConnectionFormChanged {
                     field: "endpoint".into(),
                     value: v,
-                },
-            ),
-            text_input("Region", &form.region).on_input(|v| {
+                }
+            },),
+            text_input(&placeholder_region, &form.region).on_input(|v| {
                 Message::ConnectionFormChanged {
                     field: "region".into(),
                     value: v,
                 }
             }),
-            text_input("Access Key ID", &form.access_key_id).on_input(|v| {
+            text_input(&placeholder_ak, &form.access_key_id).on_input(|v| {
                 Message::ConnectionFormChanged {
                     field: "access_key_id".into(),
                     value: v,
                 }
             }),
-            text_input("Secret Access Key", &form.secret_access_key).on_input(|v| Message::ConnectionFormChanged {
+            text_input(&placeholder_sk, &form.secret_access_key).on_input(|v| {
+                Message::ConnectionFormChanged {
                     field: "secret_access_key".into(),
                     value: v,
-                }),
+                }
+            }),
             toggler(form.force_path_style)
-                .label("Path-style URL (recommended for S3-compatible storage)")
+                .label(t!("force_path_style_label").to_string())
                 .on_toggle(|b| Message::ConnectionFormChanged {
                     field: "force_path_style".into(),
                     value: b.to_string(),
                 }),
             row![
-                button("Save").on_press(Message::ConnectionFormSave),
-                button("Cancel").on_press(Message::ConnectionFormCancel),
+                button(text(t!("save").to_string())).on_press(Message::ConnectionFormSave),
+                button(text(t!("cancel").to_string())).on_press(Message::ConnectionFormCancel),
             ]
             .spacing(10),
         ]
@@ -648,9 +690,12 @@ fn view_connections(app: &App) -> Element<'_, Message> {
 
             row![
                 container(card).width(iced::Length::Fill),
-                button("Connect").on_press(Message::ConnectionSelected(conn.id.clone())),
-                button("Edit").on_press(Message::ConnectionEdit(conn.id.clone())),
-                button("Delete").on_press(Message::ConnectionDelete(conn.id.clone())),
+                button(text(t!("connect").to_string()))
+                    .on_press(Message::ConnectionSelected(conn.id.clone())),
+                button(text(t!("edit").to_string()))
+                    .on_press(Message::ConnectionEdit(conn.id.clone())),
+                button(text(t!("delete").to_string()))
+                    .on_press(Message::ConnectionDelete(conn.id.clone())),
             ]
             .spacing(8)
             .align_y(iced::Alignment::Center)
@@ -658,25 +703,29 @@ fn view_connections(app: &App) -> Element<'_, Message> {
         })
         .collect();
 
-    let list = container(column(items).spacing(6).padding(10))
-        .style(|_theme: &Theme| container::Style {
-            background: Some(iced::Background::Color(iced::Color::from_rgb(
-                0.1, 0.1, 0.15,
-            ))),
-            border: iced::Border::default().rounded(4),
-            ..Default::default()
-        })
-        .width(iced::Length::Fill);
+    let content = if items.is_empty() {
+        content
+    } else {
+        let list = container(column(items).spacing(6).padding(10))
+            .style(|_theme: &Theme| container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgb(
+                    0.1, 0.1, 0.15,
+                ))),
+                border: iced::Border::default().rounded(4),
+                ..Default::default()
+            })
+            .width(iced::Length::Fill);
 
-    container(column![content, list].spacing(10))
-        .width(iced::Length::Fill)
-        .into()
+        column![content, list].spacing(10)
+    };
+
+    container(content).width(iced::Length::Fill).into()
 }
 
 fn view_buckets(app: &App) -> Element<'_, Message> {
     let header = row![
-        button("← Back").on_press(Message::GoToConnections),
-        text("Buckets").size(24),
+        button(text(t!("back").to_string())).on_press(Message::GoToConnections),
+        text(t!("buckets").to_string()).size(24),
     ]
     .spacing(10)
     .align_y(iced::Alignment::Center);
@@ -697,7 +746,8 @@ fn view_buckets(app: &App) -> Element<'_, Message> {
                     .color(iced::Color::from_rgb(0.6, 0.6, 0.6)),
                 )
                 .width(iced::Length::Fill),
-                button("Open").on_press(Message::BucketSelected(b.name.clone())),
+                button(text(t!("open").to_string()))
+                    .on_press(Message::BucketSelected(b.name.clone())),
             ]
             .spacing(10)
             .align_y(iced::Alignment::Center);
@@ -724,30 +774,33 @@ fn view_buckets(app: &App) -> Element<'_, Message> {
 }
 
 fn view_objects(app: &App) -> Element<'_, Message> {
-    let bucket_name = app.current_bucket.as_deref().unwrap_or("unknown");
+    let unknown_label = t!("unknown").to_string();
+    let bucket_name = app.current_bucket.as_deref().unwrap_or(&unknown_label);
+    let placeholder_local_path = t!("local_file_path").to_string();
+    let placeholder_download_path = t!("download_save_path").to_string();
 
     let breadcrumb = row![
-        button("← Back").on_press(Message::NavigateUp),
+        button(text(t!("back").to_string())).on_press(Message::NavigateUp),
         text(format!("📁 {}", bucket_name)).size(24),
         text(&app.current_prefix)
             .size(14)
             .color(iced::Color::from_rgb(0.6, 0.6, 0.6)),
-        button("Refresh").on_press(Message::RefreshObjects),
+        button(text(t!("refresh").to_string())).on_press(Message::RefreshObjects),
     ]
     .spacing(10)
     .align_y(iced::Alignment::Center);
 
     let upload_row = row![
-        text_input("Local file path", &app.upload_path)
+        text_input(&placeholder_local_path, &app.upload_path)
             .on_input(Message::UploadPathChanged)
             .width(iced::Length::Fill),
-        button("Upload").on_press(Message::UploadObject),
+        button(text(t!("upload").to_string())).on_press(Message::UploadObject),
     ]
     .spacing(8)
     .align_y(iced::Alignment::Center);
 
     let download_row = row![
-        text_input("Download save path", &app.download_path)
+        text_input(&placeholder_download_path, &app.download_path)
             .on_input(Message::DownloadPathChanged)
             .width(iced::Length::Fill),
     ]
@@ -782,7 +835,7 @@ fn view_objects(app: &App) -> Element<'_, Message> {
                 row![
                     text(format!("📁 {}", display_name)).size(16),
                     container(
-                        text("Folder")
+                        text(t!("folder").to_string())
                             .size(12)
                             .color(iced::Color::from_rgb(0.6, 0.6, 0.6)),
                     )
@@ -798,7 +851,10 @@ fn view_objects(app: &App) -> Element<'_, Message> {
     }
 
     for obj in &app.objects {
-        let name = obj.key.strip_prefix(&app.current_prefix).unwrap_or(&obj.key);
+        let name = obj
+            .key
+            .strip_prefix(&app.current_prefix)
+            .unwrap_or(&obj.key);
         if name.is_empty() {
             continue;
         }
@@ -818,19 +874,25 @@ fn view_objects(app: &App) -> Element<'_, Message> {
             )
             .size(12)
             .color(iced::Color::from_rgb(0.6, 0.6, 0.6)),
-            button("Download").on_press(Message::DownloadObject(obj.key.clone())),
-            button("Delete").on_press(Message::DeleteObject(obj.key.clone())),
+            button(text(t!("download").to_string()))
+                .on_press(Message::DownloadObject(obj.key.clone())),
+            button(text(t!("delete").to_string())).on_press(Message::DeleteObject(obj.key.clone())),
         ]
         .spacing(10)
         .align_y(iced::Alignment::Center);
 
-        items.push(container(row_content).padding(Padding::new(8.0).right(24.0)).width(iced::Length::Fill).into());
+        items.push(
+            container(row_content)
+                .padding(Padding::new(8.0).right(24.0))
+                .width(iced::Length::Fill)
+                .into(),
+        );
         items.push(rule::horizontal(1).into());
     }
 
     if app.is_truncated {
         items.push(
-            container(button("Load more...").on_press(Message::LoadMoreObjects))
+            container(button(text(t!("load_more").to_string())).on_press(Message::LoadMoreObjects))
                 .padding(Padding::new(8.0).right(24.0))
                 .center_x(iced::Length::Fill)
                 .width(iced::Length::Fill)

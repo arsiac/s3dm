@@ -1,0 +1,53 @@
+_version: 1
+
+# Headers
+connections: "連線管理"
+buckets: "儲存桶"
+
+# Connection list buttons
+add_connection: "+ 新增連線"
+connect: "連線"
+edit: "編輯"
+delete: "刪除"
+
+# Connection form
+add_connection_title: "新增連線"
+edit_connection_title: "編輯連線"
+name: "名稱"
+endpoint_hint: "端點位址（例如 https://s3.example.com）"
+region: "區域"
+access_key_id: "存取金鑰 ID"
+secret_access_key: "秘密存取金鑰"
+force_path_style_label: "路徑風格 URL（建議用於 S3 相容儲存）"
+save: "儲存"
+cancel: "取消"
+
+# Buckets page
+back: "← 返回"
+open: "開啟"
+
+# Objects page
+refresh: "重新整理"
+local_file_path: "本機檔案路徑"
+upload: "上傳"
+download_save_path: "下載儲存路徑"
+folder: "資料夾"
+download: "下載"
+load_more: "載入更多..."
+
+# Status
+loading: "載入中..."
+unknown: "未知"
+
+# Errors
+error: "錯誤: %{message}"
+connection_failed: "連線失敗: %{error}"
+delete_connection_failed: "刪除連線失敗: %{error}"
+save_connection_failed: "儲存連線失敗: %{error}"
+load_objects_failed: "載入物件失敗: %{error}"
+delete_failed: "刪除失敗: %{error}"
+upload_failed: "上傳失敗: %{error}"
+download_failed: "下載失敗: %{error}"
+select_file_path: "請選擇檔案路徑"
+set_download_path: "請設定下載儲存路徑"
+read_file_failed: "讀取檔案失敗: %{error}"

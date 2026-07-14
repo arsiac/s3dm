@@ -1,0 +1,53 @@
+_version: 1
+
+# Headers
+connections: "Connections"
+buckets: "Buckets"
+
+# Connection list buttons
+add_connection: "+ Add Connection"
+connect: "Connect"
+edit: "Edit"
+delete: "Delete"
+
+# Connection form
+add_connection_title: "Add Connection"
+edit_connection_title: "Edit Connection"
+name: "Name"
+endpoint_hint: "Endpoint (e.g. https://s3.example.com)"
+region: "Region"
+access_key_id: "Access Key ID"
+secret_access_key: "Secret Access Key"
+force_path_style_label: "Path-style URL (recommended for S3-compatible storage)"
+save: "Save"
+cancel: "Cancel"
+
+# Buckets page
+back: "← Back"
+open: "Open"
+
+# Objects page
+refresh: "Refresh"
+local_file_path: "Local file path"
+upload: "Upload"
+download_save_path: "Download save path"
+folder: "Folder"
+download: "Download"
+load_more: "Load more..."
+
+# Status
+loading: "Loading..."
+unknown: "unknown"
+
+# Errors
+error: "Error: %{message}"
+connection_failed: "Connection failed: %{error}"
+delete_connection_failed: "Failed to delete connection: %{error}"
+save_connection_failed: "Failed to save connection: %{error}"
+load_objects_failed: "Failed to load objects: %{error}"
+delete_failed: "Failed to delete: %{error}"
+upload_failed: "Upload failed: %{error}"
+download_failed: "Download failed: %{error}"
+select_file_path: "Please select a file path"
+set_download_path: "Please set the download save path"
+read_file_failed: "Failed to read file: %{error}"

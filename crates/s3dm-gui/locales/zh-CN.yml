@@ -1,0 +1,53 @@
+_version: 1
+
+# Headers
+connections: "连接管理"
+buckets: "存储桶"
+
+# Connection list buttons
+add_connection: "+ 添加连接"
+connect: "连接"
+edit: "编辑"
+delete: "删除"
+
+# Connection form
+add_connection_title: "添加连接"
+edit_connection_title: "编辑连接"
+name: "名称"
+endpoint_hint: "端点地址（例如 https://s3.example.com）"
+region: "区域"
+access_key_id: "访问密钥 ID"
+secret_access_key: "秘密访问密钥"
+force_path_style_label: "路径风格 URL（推荐用于 S3 兼容存储）"
+save: "保存"
+cancel: "取消"
+
+# Buckets page
+back: "← 返回"
+open: "打开"
+
+# Objects page
+refresh: "刷新"
+local_file_path: "本地文件路径"
+upload: "上传"
+download_save_path: "下载保存路径"
+folder: "文件夹"
+download: "下载"
+load_more: "加载更多..."
+
+# Status
+loading: "加载中..."
+unknown: "未知"
+
+# Errors
+error: "错误: %{message}"
+connection_failed: "连接失败: %{error}"
+delete_connection_failed: "删除连接失败: %{error}"
+save_connection_failed: "保存连接失败: %{error}"
+load_objects_failed: "加载对象失败: %{error}"
+delete_failed: "删除失败: %{error}"
+upload_failed: "上传失败: %{error}"
+download_failed: "下载失败: %{error}"
+select_file_path: "请选择文件路径"
+set_download_path: "请设置下载保存路径"
+read_file_failed: "读取文件失败: %{error}"
