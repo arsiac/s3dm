@@ -4,7 +4,7 @@ fn main() -> iced::Result {
     log::info!("Starting S3 Desktop Manager");
 
     iced::application(s3dm_gui::boot, s3dm_gui::update, s3dm_gui::view)
-        .theme(iced::Theme::Dark)
+        .theme(|app: &s3dm_gui::App| app.theme.clone())
         .centered()
         .run()
 }

@@ -1,12 +1,83 @@
 use iced::{
     Element, Padding, Task, Theme,
-    widget::{button, column, container, row, rule, scrollable, text, text_input, toggler},
+    widget::{button, column, container, pick_list, row, rule, scrollable, text, text_input, toggler},
 };
 use rust_i18n::t;
 
 rust_i18n::i18n!("locales");
 use s3dm_config::ConfigStore;
 use s3dm_core::{CoreError, ObjectListResult, S3Bucket, S3Manager, S3Object};
+
+const AVAILABLE_THEMES: &[(&str, Theme)] = &[
+    ("Dark", Theme::Dark),
+    ("Light", Theme::Light),
+    ("Dracula", Theme::Dracula),
+    ("Nord", Theme::Nord),
+    ("Solarized Light", Theme::SolarizedLight),
+    ("Solarized Dark", Theme::SolarizedDark),
+    ("Gruvbox Light", Theme::GruvboxLight),
+    ("Gruvbox Dark", Theme::GruvboxDark),
+    ("Catppuccin Latte", Theme::CatppuccinLatte),
+    ("Catppuccin Frappé", Theme::CatppuccinFrappe),
+    ("Catppuccin Macchiato", Theme::CatppuccinMacchiato),
+    ("Catppuccin Mocha", Theme::CatppuccinMocha),
+    ("Tokyo Night", Theme::TokyoNight),
+    ("Tokyo Night Storm", Theme::TokyoNightStorm),
+    ("Tokyo Night Light", Theme::TokyoNightLight),
+    ("Kanagawa Wave", Theme::KanagawaWave),
+    ("Kanagawa Dragon", Theme::KanagawaDragon),
+    ("Kanagawa Lotus", Theme::KanagawaLotus),
+    ("Moonfly", Theme::Moonfly),
+    ("Nightfly", Theme::Nightfly),
+    ("Oxocarbon", Theme::Oxocarbon),
+    ("Ferra", Theme::Ferra),
+];
+
+const LANGUAGES: &[(&str, &str)] = &[
+    ("English", "en"),
+    ("简体中文", "zh-CN"),
+    ("繁體中文", "zh-TW"),
+];
+
+struct CustomPalette {
+    surface: iced::Color,
+    surface_raised: iced::Color,
+    text_secondary: iced::Color,
+}
+
+fn custom_palette(theme: &Theme) -> CustomPalette {
+    let bg = theme.palette().background;
+    let luminance = 0.299 * bg.r + 0.587 * bg.g + 0.114 * bg.b;
+    if luminance > 0.5 {
+        CustomPalette {
+            surface: iced::Color::from_rgb(
+                (bg.r - 0.06).max(0.0),
+                (bg.g - 0.06).max(0.0),
+                (bg.b - 0.06).max(0.0),
+            ),
+            surface_raised: iced::Color::from_rgb(
+                (bg.r - 0.10).max(0.0),
+                (bg.g - 0.10).max(0.0),
+                (bg.b - 0.10).max(0.0),
+            ),
+            text_secondary: iced::Color::from_rgb(0.45, 0.45, 0.45),
+        }
+    } else {
+        CustomPalette {
+            surface: iced::Color::from_rgb(
+                (bg.r + 0.08).min(1.0),
+                (bg.g + 0.08).min(1.0),
+                (bg.b + 0.08).min(1.0),
+            ),
+            surface_raised: iced::Color::from_rgb(
+                (bg.r + 0.12).min(1.0),
+                (bg.g + 0.12).min(1.0),
+                (bg.b + 0.12).min(1.0),
+            ),
+            text_secondary: iced::Color::from_rgb(0.6, 0.6, 0.6),
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 enum Page {
@@ -98,6 +169,9 @@ pub enum Message {
     UploadPathChanged(String),
     DownloadPathChanged(String),
     ClearError,
+    ToggleSettings,
+    ThemeChanged(String),
+    LanguageChanged(String),
 }
 
 pub struct App {
@@ -117,6 +191,9 @@ pub struct App {
     is_loading: bool,
     upload_path: String,
     download_path: String,
+    pub show_settings: bool,
+    pub theme: Theme,
+    pub current_theme_name: String,
 }
 
 impl App {
@@ -177,6 +254,9 @@ pub fn boot() -> (App, Task<Message>) {
         is_loading: false,
         upload_path: String::new(),
         download_path: String::new(),
+        show_settings: false,
+        theme: Theme::Dark,
+        current_theme_name: "Dark".to_string(),
     };
     (app, Task::none())
 }
@@ -542,6 +622,21 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             app.error_message = None;
             Task::none()
         }
+        Message::ToggleSettings => {
+            app.show_settings = !app.show_settings;
+            Task::none()
+        }
+        Message::ThemeChanged(name) => {
+            if let Some((_, theme)) = AVAILABLE_THEMES.iter().find(|(n, _)| *n == name) {
+                app.theme = theme.clone();
+                app.current_theme_name = name;
+            }
+            Task::none()
+        }
+        Message::LanguageChanged(code) => {
+            rust_i18n::set_locale(&code);
+            Task::none()
+        }
     }
 }
 
@@ -558,7 +653,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(iced::Alignment::Center),
         )
         .padding(10)
-        .style(|_theme: &Theme| container::Style {
+        .style(|_: &Theme| container::Style {
             background: Some(iced::Background::Color(iced::Color::from_rgb(
                 0.8, 0.2, 0.2,
             ))),
@@ -585,16 +680,37 @@ pub fn view(app: &App) -> Element<'_, Message> {
         elements.push(loading.into());
     }
 
-    container(column(elements).padding(20).spacing(10))
+    let content = container(column(elements).padding(20).spacing(10))
         .width(iced::Length::Fill)
-        .height(iced::Length::Fill)
-        .into()
+        .height(iced::Length::Fill);
+
+    if app.show_settings {
+        let overlay = container(view_settings(app))
+            .width(iced::Length::Fill)
+            .height(iced::Length::Fill)
+            .style(|_: &Theme| container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgba(
+                    0.0, 0.0, 0.0, 0.6,
+                ))),
+                ..Default::default()
+            })
+            .center_x(iced::Length::Fill)
+            .center_y(iced::Length::Fill);
+
+        iced::widget::stack(vec![content.into(), iced::widget::opaque(overlay).into()]).into()
+    } else {
+        content.into()
+    }
 }
 
 fn view_connections(app: &App) -> Element<'_, Message> {
+    let p = custom_palette(&app.theme);
     let header = row![
         text(t!("connections").to_string()).size(24),
         button(text(t!("add_connection").to_string())).on_press(Message::ConnectionAdd),
+        container(button("⚙").on_press(Message::ToggleSettings))
+            .width(iced::Length::Fill)
+            .align_x(iced::Alignment::End),
     ]
     .spacing(10)
     .align_y(iced::Alignment::Center);
@@ -663,10 +779,8 @@ fn view_connections(app: &App) -> Element<'_, Message> {
         content = column![
             content,
             container(fields)
-                .style(|_theme: &Theme| container::Style {
-                    background: Some(iced::Background::Color(iced::Color::from_rgb(
-                        0.15, 0.15, 0.2,
-                    ))),
+                .style(|theme: &Theme| container::Style {
+                    background: Some(iced::Background::Color(custom_palette(theme).surface_raised)),
                     border: iced::Border::default().rounded(4),
                     ..Default::default()
                 })
@@ -684,7 +798,7 @@ fn view_connections(app: &App) -> Element<'_, Message> {
                 text(&conn.name).size(16),
                 text(&conn.endpoint)
                     .size(12)
-                    .color(iced::Color::from_rgb(0.6, 0.6, 0.6)),
+                    .color(p.text_secondary),
             ]
             .spacing(4);
 
@@ -707,10 +821,8 @@ fn view_connections(app: &App) -> Element<'_, Message> {
         content
     } else {
         let list = container(column(items).spacing(6).padding(10))
-            .style(|_theme: &Theme| container::Style {
-                background: Some(iced::Background::Color(iced::Color::from_rgb(
-                    0.1, 0.1, 0.15,
-                ))),
+            .style(|theme: &Theme| container::Style {
+                background: Some(iced::Background::Color(custom_palette(theme).surface)),
                 border: iced::Border::default().rounded(4),
                 ..Default::default()
             })
@@ -723,9 +835,13 @@ fn view_connections(app: &App) -> Element<'_, Message> {
 }
 
 fn view_buckets(app: &App) -> Element<'_, Message> {
+    let p = custom_palette(&app.theme);
     let header = row![
         button(text(t!("back").to_string())).on_press(Message::GoToConnections),
         text(t!("buckets").to_string()).size(24),
+        container(button("⚙").on_press(Message::ToggleSettings))
+            .width(iced::Length::Fill)
+            .align_x(iced::Alignment::End),
     ]
     .spacing(10)
     .align_y(iced::Alignment::Center);
@@ -743,7 +859,7 @@ fn view_buckets(app: &App) -> Element<'_, Message> {
                             .unwrap_or_default()
                     )
                     .size(12)
-                    .color(iced::Color::from_rgb(0.6, 0.6, 0.6)),
+                    .color(p.text_secondary),
                 )
                 .width(iced::Length::Fill),
                 button(text(t!("open").to_string()))
@@ -754,10 +870,8 @@ fn view_buckets(app: &App) -> Element<'_, Message> {
 
             container(card)
                 .padding(10)
-                .style(|_theme: &Theme| container::Style {
-                    background: Some(iced::Background::Color(iced::Color::from_rgb(
-                        0.12, 0.12, 0.18,
-                    ))),
+                .style(|theme: &Theme| container::Style {
+                    background: Some(iced::Background::Color(custom_palette(theme).surface)),
                     border: iced::Border::default().rounded(4),
                     ..Default::default()
                 })
@@ -774,6 +888,7 @@ fn view_buckets(app: &App) -> Element<'_, Message> {
 }
 
 fn view_objects(app: &App) -> Element<'_, Message> {
+    let p = custom_palette(&app.theme);
     let unknown_label = t!("unknown").to_string();
     let bucket_name = app.current_bucket.as_deref().unwrap_or(&unknown_label);
     let placeholder_local_path = t!("local_file_path").to_string();
@@ -784,8 +899,11 @@ fn view_objects(app: &App) -> Element<'_, Message> {
         text(format!("📁 {}", bucket_name)).size(24),
         text(&app.current_prefix)
             .size(14)
-            .color(iced::Color::from_rgb(0.6, 0.6, 0.6)),
+            .color(p.text_secondary),
         button(text(t!("refresh").to_string())).on_press(Message::RefreshObjects),
+        container(button("⚙").on_press(Message::ToggleSettings))
+            .width(iced::Length::Fill)
+            .align_x(iced::Alignment::End),
     ]
     .spacing(10)
     .align_y(iced::Alignment::Center);
@@ -836,8 +954,8 @@ fn view_objects(app: &App) -> Element<'_, Message> {
                     text(format!("📁 {}", display_name)).size(16),
                     container(
                         text(t!("folder").to_string())
-                            .size(12)
-                            .color(iced::Color::from_rgb(0.6, 0.6, 0.6)),
+                    .size(12)
+                    .color(p.text_secondary),
                     )
                     .width(iced::Length::Fill),
                 ]
@@ -864,7 +982,7 @@ fn view_objects(app: &App) -> Element<'_, Message> {
             container(
                 text(format_size(obj.size))
                     .size(12)
-                    .color(iced::Color::from_rgb(0.6, 0.6, 0.6)),
+                    .color(p.text_secondary),
             )
             .width(iced::Length::Fill),
             text(
@@ -873,7 +991,7 @@ fn view_objects(app: &App) -> Element<'_, Message> {
                     .unwrap_or_default()
             )
             .size(12)
-            .color(iced::Color::from_rgb(0.6, 0.6, 0.6)),
+            .color(p.text_secondary),
             button(text(t!("download").to_string()))
                 .on_press(Message::DownloadObject(obj.key.clone())),
             button(text(t!("delete").to_string())).on_press(Message::DeleteObject(obj.key.clone())),
@@ -915,6 +1033,55 @@ fn view_objects(app: &App) -> Element<'_, Message> {
     )
     .width(iced::Length::Fill)
     .into()
+}
+
+fn view_settings(app: &App) -> Element<'_, Message> {
+    let theme_names: Vec<String> = AVAILABLE_THEMES.iter().map(|(n, _)| n.to_string()).collect();
+    let lang_names: Vec<String> = LANGUAGES.iter().map(|(n, _)| n.to_string()).collect();
+    let current_locale = rust_i18n::locale().to_string();
+    let current_lang = LANGUAGES
+        .iter()
+        .find(|(_, code)| *code == current_locale)
+        .map(|(name, _)| name.to_string())
+        .unwrap_or_else(|| "English".to_string());
+
+    let panel = column![
+        row![
+            text(t!("settings").to_string()).size(20),
+            container(button("×").on_press(Message::ToggleSettings))
+                .width(iced::Length::Fill)
+                .align_x(iced::Alignment::End),
+        ]
+        .spacing(10)
+        .align_y(iced::Alignment::Center),
+        iced::widget::rule::horizontal(1),
+        text(t!("theme").to_string()).size(16),
+        pick_list(theme_names, Some(app.current_theme_name.clone()), Message::ThemeChanged),
+        text(t!("language").to_string()).size(16),
+        pick_list(
+            lang_names,
+            Some(current_lang),
+            |name| {
+                let code = LANGUAGES
+                    .iter()
+                    .find(|(n, _)| *n == name)
+                    .map(|(_, c)| c.to_string())
+                    .unwrap_or_else(|| "en".to_string());
+                Message::LanguageChanged(code)
+            },
+        ),
+    ]
+    .spacing(15)
+    .padding(20);
+
+    container(panel)
+        .width(360)
+        .style(|theme: &Theme| container::Style {
+            background: Some(iced::Background::Color(custom_palette(theme).surface_raised)),
+            border: iced::Border::default().rounded(8),
+            ..Default::default()
+        })
+        .into()
 }
 
 fn format_size(size: i64) -> String {

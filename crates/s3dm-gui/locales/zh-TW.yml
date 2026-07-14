@@ -51,3 +51,9 @@ download_failed: "下載失敗: %{error}"
 select_file_path: "請選擇檔案路徑"
 set_download_path: "請設定下載儲存路徑"
 read_file_failed: "讀取檔案失敗: %{error}"
+
+# Settings
+settings: "設定"
+theme: "主題"
+language: "語言"
+close: "關閉"

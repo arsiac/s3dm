@@ -51,3 +51,9 @@ download_failed: "Download failed: %{error}"
 select_file_path: "Please select a file path"
 set_download_path: "Please set the download save path"
 read_file_failed: "Failed to read file: %{error}"
+
+# Settings
+settings: "Settings"
+theme: "Theme"
+language: "Language"
+close: "Close"
