@@ -52,6 +52,10 @@ select_file_path: "请选择文件路径"
 set_download_path: "请设置下载保存路径"
 read_file_failed: "读取文件失败: %{error}"
 
+# Dialog
+new_folder_title: "新建文件夹"
+new_folder_placeholder: "文件夹名称"
+
 # IDE Layout
 storage_browser: "存储浏览器"
 no_connection: "暂无连接"

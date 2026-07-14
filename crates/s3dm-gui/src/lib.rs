@@ -177,6 +177,9 @@ pub enum Message {
     CancelDelete,
     ConfirmDeleteObject(String),
     CancelDeleteObject,
+    ToggleNewFolder,
+    NewFolderInputChanged(String),
+    CreateNewFolder,
 }
 
 pub struct App {
@@ -197,6 +200,7 @@ pub struct App {
     download_dir: String,
     pending_delete: Option<String>,
     pending_delete_object: Option<String>,
+    new_folder_input: Option<String>,
     pub show_settings: bool,
     pub theme: Theme,
     pub current_theme_name: String,
@@ -261,6 +265,7 @@ pub fn boot() -> (App, Task<Message>) {
         download_dir: dirs::download_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
         pending_delete: None,
         pending_delete_object: None,
+        new_folder_input: None,
         show_settings: false,
         theme: Theme::Dark,
         current_theme_name: "Dark".to_string(),
@@ -522,6 +527,43 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         Message::CancelDeleteObject => {
             app.pending_delete_object = None;
             Task::none()
+        }
+        Message::ToggleNewFolder => {
+            if app.new_folder_input.is_some() {
+                app.new_folder_input = None;
+            } else {
+                app.new_folder_input = Some(String::new());
+            }
+            Task::none()
+        }
+        Message::NewFolderInputChanged(val) => {
+            if let Some(ref mut v) = app.new_folder_input {
+                *v = val;
+            }
+            Task::none()
+        }
+        Message::CreateNewFolder => {
+            let name = match &app.new_folder_input {
+                Some(n) if !n.is_empty() => n.clone(),
+                _ => return Task::none(),
+            };
+            app.new_folder_input = None;
+            let bucket = match &app.current_bucket {
+                Some(b) => b.clone(),
+                None => return Task::none(),
+            };
+            let prefix = app.current_prefix.clone();
+            let key = format!("{}{}/", prefix, name);
+            let s3 = match &app.s3_manager {
+                Some(s) => s.clone(),
+                None => return Task::none(),
+            };
+            log::info!("Creating folder: {}", key);
+            app.is_loading = true;
+            Task::perform(
+                async move { s3.put_object(&bucket, &key, vec![]) },
+                Message::UploadResult,
+            )
         }
         Message::DeletePrefix(prefix) => {
             log::info!("Deleting prefix: {}", prefix);
@@ -821,6 +863,45 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .width(Length::Fill)
                     .align_x(Alignment::End),
                 button(text(t!("cancel").to_string())).on_press(Message::CancelDeleteObject),
+            ]
+            .spacing(10),
+        ]
+        .spacing(16)
+        .padding(20);
+
+        let content = container(panel)
+            .width(360)
+            .style(move |_: &Theme| container::Style {
+                background: Some(iced::Background::Color(p.surface_raised)),
+                border: iced::Border::default().rounded(8),
+                ..Default::default()
+            });
+
+        let overlay = container(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(|_: &Theme| container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
+                ..Default::default()
+            })
+            .center_x(Length::Fill)
+            .center_y(Length::Fill);
+
+        stack_elements.push(iced::widget::opaque(overlay).into());
+    }
+
+    if let Some(ref input) = app.new_folder_input {
+        let p = custom_palette(&app.theme);
+        let panel = column![
+            text(t!("new_folder_title").to_string()).size(18),
+            rule::horizontal(1),
+            text_input(&t!("new_folder_placeholder").to_string(), input)
+                .on_input(Message::NewFolderInputChanged),
+            row![
+                container(button(text(t!("confirm").to_string())).on_press(Message::CreateNewFolder))
+                    .width(Length::Fill)
+                    .align_x(Alignment::End),
+                button(text(t!("cancel").to_string())).on_press(Message::ToggleNewFolder),
             ]
             .spacing(10),
         ]
@@ -1236,6 +1317,12 @@ fn view_objects(app: &App) -> Element<'_, Message> {
             .width(Length::Fill)
             .align_x(Alignment::End),
         button(upload_svg).style(icon_btn_style).on_press(Message::UploadObject),
+        button(
+            svg(SvgHandle::from_memory(include_bytes!("../icons/folder-add-16-filled.svg").to_vec()))
+                .width(Length::Fixed(16.0)).height(Length::Fixed(16.0)).style(svg_style),
+        )
+        .style(icon_btn_style)
+        .on_press(Message::ToggleNewFolder),
     ]
     .spacing(10)
     .align_y(Alignment::Center);

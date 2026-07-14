@@ -52,6 +52,10 @@ select_file_path: "請選擇檔案路徑"
 set_download_path: "請設定下載儲存路徑"
 read_file_failed: "讀取檔案失敗: %{error}"
 
+# Dialog
+new_folder_title: "新增資料夾"
+new_folder_placeholder: "資料夾名稱"
+
 # IDE Layout
 storage_browser: "儲存瀏覽器"
 no_connection: "暫無連線"

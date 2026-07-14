@@ -52,6 +52,10 @@ select_file_path: "Please select a file path"
 set_download_path: "Please set the download save path"
 read_file_failed: "Failed to read file: %{error}"
 
+# Dialog
+new_folder_title: "New Folder"
+new_folder_placeholder: "Folder name"
+
 # IDE Layout
 storage_browser: "Storage Browser"
 no_connection: "No Connections"
