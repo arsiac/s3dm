@@ -227,7 +227,11 @@ impl S3Manager {
     }
 
     pub fn delete_prefix(&self, bucket: &str, prefix: &str) -> Result<(), CoreError> {
-        log::info!("Deleting objects under prefix bucket={} prefix={}", bucket, prefix);
+        log::info!(
+            "Deleting objects under prefix bucket={} prefix={}",
+            bucket,
+            prefix
+        );
         self.run(async {
             let mut keys: Vec<String> = Vec::new();
             let mut token: Option<String> = None;
@@ -242,9 +246,10 @@ impl S3Manager {
                 if let Some(ref t) = token {
                     req = req.continuation_token(t);
                 }
-                let resp = req.send().await.map_err(|e| {
-                    CoreError::S3(format!("list objects failed: {}", e))
-                })?;
+                let resp = req
+                    .send()
+                    .await
+                    .map_err(|e| CoreError::S3(format!("list objects failed: {}", e)))?;
 
                 for obj in resp.contents() {
                     if let Some(key) = obj.key() {
