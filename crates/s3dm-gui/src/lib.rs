@@ -1115,8 +1115,12 @@ fn view_left_panel(app: &App) -> Element<'_, Message> {
                 items.push(
                     button(
                         row![
-                            svg(SvgHandle::from_memory(include_bytes!("../icons/folder-16-filled.svg").to_vec()))
-                                .width(Length::Fixed(14.0)).height(Length::Fixed(14.0))                                .style(svg_style),
+                            svg(SvgHandle::from_memory(if is_active {
+                                include_bytes!("../icons/folder-open-16-filled.svg").to_vec()
+                            } else {
+                                include_bytes!("../icons/folder-16-filled.svg").to_vec()
+                            }))
+                                .width(Length::Fixed(14.0)).height(Length::Fixed(14.0)).style(svg_style),
                             text(&bucket.name).size(12),
                         ]
                             .spacing(6)
