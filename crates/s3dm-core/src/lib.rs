@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
 use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::types::{Delete, ObjectIdentifier};
 use chrono::{DateTime, TimeZone, Utc};
 use thiserror::Error;
 
@@ -221,6 +222,67 @@ impl S3Manager {
                     CoreError::S3(e.to_string())
                 })?;
             log::debug!("Object deleted successfully bucket={} key={}", bucket, key);
+            Ok(())
+        })
+    }
+
+    pub fn delete_prefix(&self, bucket: &str, prefix: &str) -> Result<(), CoreError> {
+        log::info!("Deleting objects under prefix bucket={} prefix={}", bucket, prefix);
+        self.run(async {
+            let mut keys: Vec<String> = Vec::new();
+            let mut token: Option<String> = None;
+
+            loop {
+                let mut req = self
+                    .client
+                    .list_objects_v2()
+                    .bucket(bucket)
+                    .prefix(prefix)
+                    .max_keys(1000);
+                if let Some(ref t) = token {
+                    req = req.continuation_token(t);
+                }
+                let resp = req.send().await.map_err(|e| {
+                    CoreError::S3(format!("list objects failed: {}", e))
+                })?;
+
+                for obj in resp.contents() {
+                    if let Some(key) = obj.key() {
+                        keys.push(key.to_string());
+                    }
+                }
+                if !resp.is_truncated().unwrap_or(false) {
+                    break;
+                }
+                token = resp.next_continuation_token().map(|s| s.to_string());
+            }
+
+            if keys.is_empty() {
+                log::info!("No objects found under prefix={}", prefix);
+                return Ok(());
+            }
+
+            log::info!("Deleting {} objects under prefix={}", keys.len(), prefix);
+            for chunk in keys.chunks(1000) {
+                let objects: Vec<ObjectIdentifier> = chunk
+                    .iter()
+                    .map(|k| ObjectIdentifier::builder().key(k).build().unwrap())
+                    .collect();
+                let delete = Delete::builder()
+                    .set_objects(Some(objects))
+                    .build()
+                    .map_err(|e| CoreError::S3(format!("build delete request failed: {}", e)))?;
+
+                self.client
+                    .delete_objects()
+                    .bucket(bucket)
+                    .delete(delete)
+                    .send()
+                    .await
+                    .map_err(|e| CoreError::S3(format!("batch delete failed: {}", e)))?;
+            }
+
+            log::info!("Successfully deleted all objects under prefix={}", prefix);
             Ok(())
         })
     }

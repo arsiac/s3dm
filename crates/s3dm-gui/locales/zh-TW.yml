@@ -52,8 +52,29 @@ select_file_path: "請選擇檔案路徑"
 set_download_path: "請設定下載儲存路徑"
 read_file_failed: "讀取檔案失敗: %{error}"
 
+# IDE Layout
+storage_browser: "儲存瀏覽器"
+no_connection: "暫無連線"
+select_connection_hint: "請從左側面板選擇一個連線"
+select_bucket_hint: "請從左側面板選擇一個儲存桶"
+
+# Confirm dialog
+delete_confirm_title: "刪除連線"
+delete_confirm_message: "確定要刪除 %{name} 嗎？"
+delete_object_confirm_title: "刪除檔案"
+delete_object_confirm_message: "確定要刪除 %{name} 嗎？"
+confirm: "確定"
+
+# Status bar
+status_ready: "就緒"
+status_connected: "已連線"
+status_objects: "個物件"
+status_buckets: "個儲存桶"
+
 # Settings
 settings: "設定"
 theme: "主題"
 language: "語言"
+download_dir: "下載目錄"
+download_dir_hint: "檔案下載儲存路徑"
 close: "關閉"

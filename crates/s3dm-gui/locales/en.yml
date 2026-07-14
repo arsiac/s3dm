@@ -52,8 +52,29 @@ select_file_path: "Please select a file path"
 set_download_path: "Please set the download save path"
 read_file_failed: "Failed to read file: %{error}"
 
+# IDE Layout
+storage_browser: "Storage Browser"
+no_connection: "No Connections"
+select_connection_hint: "Select a connection from the left panel"
+select_bucket_hint: "Select a bucket from the left panel"
+
+# Confirm dialog
+delete_confirm_title: "Delete Connection"
+delete_confirm_message: "Are you sure you want to delete %{name}?"
+delete_object_confirm_title: "Delete File"
+delete_object_confirm_message: "Are you sure you want to delete %{name}?"
+confirm: "Confirm"
+
+# Status bar
+status_ready: "Ready"
+status_connected: "Connected"
+status_objects: "objects"
+status_buckets: "buckets"
+
 # Settings
 settings: "Settings"
 theme: "Theme"
 language: "Language"
+download_dir: "Download Directory"
+download_dir_hint: "Path to save downloaded files"
 close: "Close"

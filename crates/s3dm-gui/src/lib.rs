@@ -1,6 +1,12 @@
+use std::path::PathBuf;
+
+use iced::widget::svg;
+use iced::widget::svg::Handle as SvgHandle;
 use iced::{
-    Element, Padding, Task, Theme,
-    widget::{button, column, container, pick_list, row, rule, scrollable, text, text_input, toggler},
+    Alignment, Element, Length, Padding, Task, Theme,
+    widget::{
+        button, column, container, pick_list, row, rule, scrollable, text, text_input, toggler,
+    },
 };
 use rust_i18n::t;
 
@@ -79,13 +85,6 @@ fn custom_palette(theme: &Theme) -> CustomPalette {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-enum Page {
-    Connections,
-    Buckets,
-    Objects,
-}
-
 #[derive(Debug, Clone)]
 struct ConnectionForm {
     id: Option<String>,
@@ -135,7 +134,7 @@ impl ConnectionForm {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    GoToConnections,
+    ToggleConnectionExpand(String),
     ConnectionSelected(String),
     ConnectionAdd,
     ConnectionEdit(String),
@@ -157,28 +156,34 @@ pub enum Message {
     RefreshObjects,
     LoadMoreObjects,
     DeleteObject(String),
+    DeletePrefix(String),
     UploadObject,
     DownloadObject(String),
     ObjectsResult(Result<ObjectListResult, CoreError>),
     DeleteResult(Result<(), CoreError>),
     DownloadResult {
         key: String,
+        save_path: String,
         data: Result<Vec<u8>, CoreError>,
     },
     UploadResult(Result<(), CoreError>),
-    UploadPathChanged(String),
-    DownloadPathChanged(String),
+    FileChosen(Option<PathBuf>),
+    DownloadDirChanged(String),
     ClearError,
     ToggleSettings,
     ThemeChanged(String),
     LanguageChanged(String),
+    ConfirmDelete(String),
+    CancelDelete,
+    ConfirmDeleteObject(String),
+    CancelDeleteObject,
 }
 
 pub struct App {
     config_store: ConfigStore,
-    current_page: Page,
     s3_manager: Option<S3Manager>,
     error_message: Option<String>,
+    expanded_connection: Option<String>,
     selected_connection_id: Option<String>,
     connection_form: Option<ConnectionForm>,
     buckets: Vec<S3Bucket>,
@@ -189,8 +194,9 @@ pub struct App {
     is_truncated: bool,
     continuation_token: Option<String>,
     is_loading: bool,
-    upload_path: String,
-    download_path: String,
+    download_dir: String,
+    pending_delete: Option<String>,
+    pending_delete_object: Option<String>,
     pub show_settings: bool,
     pub theme: Theme,
     pub current_theme_name: String,
@@ -239,9 +245,9 @@ pub fn boot() -> (App, Task<Message>) {
     );
     let app = App {
         config_store: ConfigStore::new(),
-        current_page: Page::Connections,
         s3_manager: None,
         error_message: None,
+        expanded_connection: None,
         selected_connection_id: None,
         connection_form: None,
         buckets: Vec::new(),
@@ -252,8 +258,9 @@ pub fn boot() -> (App, Task<Message>) {
         is_truncated: false,
         continuation_token: None,
         is_loading: false,
-        upload_path: String::new(),
-        download_path: String::new(),
+        download_dir: dirs::download_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
+        pending_delete: None,
+        pending_delete_object: None,
         show_settings: false,
         theme: Theme::Dark,
         current_theme_name: "Dark".to_string(),
@@ -263,19 +270,15 @@ pub fn boot() -> (App, Task<Message>) {
 
 pub fn update(app: &mut App, message: Message) -> Task<Message> {
     match message {
-        Message::GoToConnections => {
-            log::info!("Navigating back to connections page");
-            app.current_page = Page::Connections;
-            app.s3_manager = None;
-            app.buckets.clear();
-            app.current_bucket = None;
-            app.current_prefix.clear();
-            app.objects.clear();
-            app.common_prefixes.clear();
+        Message::ToggleConnectionExpand(id) => {
+            if app.expanded_connection.as_ref() == Some(&id) {
+                app.expanded_connection = None;
+            }
             Task::none()
         }
         Message::ConnectionSelected(conn_id) => {
             log::info!("Connection selected: id={}", conn_id);
+            app.expanded_connection = Some(conn_id.clone());
             if let Some(config) = app.config_store.get(&conn_id).cloned() {
                 app.is_loading = true;
                 let endpoint = config.endpoint;
@@ -313,10 +316,10 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                     app.s3_manager = Some(manager);
                     app.buckets = list;
                     app.selected_connection_id = Some(connection_id);
-                    app.current_page = Page::Buckets;
                 }
                 Err(e) => {
                     log::error!("Connection failed: {}", e);
+                    app.expanded_connection = None;
                     app.error_message =
                         Some(t!("connection_failed", error = e.to_string()).to_string());
                 }
@@ -346,12 +349,32 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
         Message::ConnectionDelete(id) => {
-            log::info!("Deleting connection: id={}", id);
+            log::info!("Prompting delete confirmation: id={}", id);
+            app.pending_delete = Some(id);
+            Task::none()
+        }
+        Message::ConfirmDelete(id) => {
+            log::info!("Confirming delete: id={}", id);
             if let Err(e) = app.config_store.delete(&id) {
                 log::error!("Delete connection failed: {}", e);
                 app.error_message =
                     Some(t!("delete_connection_failed", error = e.to_string()).to_string());
             }
+            app.pending_delete = None;
+            if app.selected_connection_id.as_ref() == Some(&id) {
+                app.selected_connection_id = None;
+                app.expanded_connection = None;
+                app.s3_manager = None;
+                app.buckets.clear();
+                app.current_bucket = None;
+                app.current_prefix.clear();
+                app.objects.clear();
+                app.common_prefixes.clear();
+            }
+            Task::none()
+        }
+        Message::CancelDelete => {
+            app.pending_delete = None;
             Task::none()
         }
         Message::ConnectionFormChanged { field, value } => {
@@ -395,7 +418,6 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             app.current_prefix = String::new();
             app.objects.clear();
             app.common_prefixes.clear();
-            app.current_page = Page::Objects;
             app.load_objects()
         }
         Message::PrefixSelected(prefix) => {
@@ -406,7 +428,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         Message::NavigateUp => {
             if app.current_prefix.is_empty() {
                 log::info!("Navigating back to bucket list");
-                app.current_page = Page::Buckets;
+                app.current_bucket = None;
                 Task::none()
             } else {
                 let trimmed = app.current_prefix.trim_end_matches('/');
@@ -477,7 +499,12 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
         Message::DeleteObject(key) => {
-            log::info!("Requesting delete object: {}", key);
+            log::info!("Prompting delete object confirmation: {}", key);
+            app.pending_delete_object = Some(key);
+            Task::none()
+        }
+        Message::ConfirmDeleteObject(key) => {
+            log::info!("Confirming delete object: {}", key);
             let bucket = match &app.current_bucket {
                 Some(b) => b.clone(),
                 None => return Task::none(),
@@ -486,8 +513,29 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 Some(s) => s.clone(),
                 None => return Task::none(),
             };
+            app.pending_delete_object = None;
             Task::perform(
                 async move { s3.delete_object(&bucket, &key) },
+                Message::DeleteResult,
+            )
+        }
+        Message::CancelDeleteObject => {
+            app.pending_delete_object = None;
+            Task::none()
+        }
+        Message::DeletePrefix(prefix) => {
+            log::info!("Deleting prefix: {}", prefix);
+            let bucket = match &app.current_bucket {
+                Some(b) => b.clone(),
+                None => return Task::none(),
+            };
+            let s3 = match &app.s3_manager {
+                Some(s) => s.clone(),
+                None => return Task::none(),
+            };
+            app.is_loading = true;
+            Task::perform(
+                async move { s3.delete_prefix(&bucket, &prefix) },
                 Message::DeleteResult,
             )
         }
@@ -503,34 +551,40 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             }
         },
         Message::UploadObject => {
+            log::info!("Opening file picker for upload");
+            Task::perform(
+                async {
+                    rfd::AsyncFileDialog::new()
+                        .pick_file()
+                        .await
+                        .map(|f| f.path().to_path_buf())
+                },
+                Message::FileChosen,
+            )
+        }
+        Message::FileChosen(Some(path)) => {
             let bucket = match &app.current_bucket {
                 Some(b) => b.clone(),
                 None => return Task::none(),
             };
             let prefix = app.current_prefix.clone();
-            let path = app.upload_path.clone();
             let s3 = match &app.s3_manager {
                 Some(s) => s.clone(),
                 None => return Task::none(),
             };
-            if path.is_empty() {
-                log::warn!("Upload file path is empty");
-                app.error_message = Some(t!("select_file_path").to_string());
-                return Task::none();
-            }
             let key = format!(
                 "{}{}",
                 prefix,
-                path.rsplit_once('/').map(|(_, f)| f).unwrap_or(&path)
+                path.file_name().map(|n| n.to_string_lossy()).unwrap_or_default()
             );
-            log::info!("Uploading file: {} -> {}", path, key);
+            log::info!("Uploading file: {:?} -> {}", path, key);
             app.is_loading = true;
             Task::perform(
                 async move {
                     match std::fs::read(&path) {
                         Ok(data) => s3.put_object(&bucket, &key, data),
                         Err(e) => {
-                            log::error!("Failed to read local file: {}: {}", path, e);
+                            log::error!("Failed to read file: {:?}: {}", path, e);
                             Err(CoreError::S3(
                                 t!("read_file_failed", error = e.to_string()).to_string(),
                             ))
@@ -540,12 +594,12 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 Message::UploadResult,
             )
         }
+        Message::FileChosen(None) => Task::none(),
         Message::UploadResult(result) => {
             app.is_loading = false;
             match result {
                 Ok(()) => {
                     log::info!("Upload succeeded");
-                    app.upload_path.clear();
                     return app.load_objects();
                 }
                 Err(e) => {
@@ -561,41 +615,28 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 Some(b) => b.clone(),
                 None => return Task::none(),
             };
-            let path = app.download_path.clone();
             let s3 = match &app.s3_manager {
                 Some(s) => s.clone(),
                 None => return Task::none(),
             };
-            if path.is_empty() {
-                log::warn!("Download save path is empty");
-                app.error_message = Some(t!("set_download_path").to_string());
-                return Task::none();
-            }
-            log::info!("Downloading object: {} -> {}", key, path);
+            let dir = app.download_dir.clone();
+            let fname = key.rsplit_once('/').map(|(_, n)| n).unwrap_or(&key);
+            let save_path = format!("{}/{}", dir.trim_end_matches('/'), fname);
+            log::info!("Downloading object: {} -> {}", key, save_path);
             app.is_loading = true;
-            let key_clone = key.clone();
+            let key_c = key.clone();
             Task::perform(
                 async move {
                     let data = s3.get_object(&bucket, &key);
-                    (key_clone, data)
+                    (key_c, save_path, data)
                 },
-                |(key, data)| Message::DownloadResult { key, data },
+                |(key, save_path, data)| Message::DownloadResult { key, save_path, data },
             )
         }
-        Message::DownloadResult { key, data } => {
+        Message::DownloadResult { key: _, save_path, data } => {
             app.is_loading = false;
             match data {
                 Ok(bytes) => {
-                    let path = app.download_path.clone();
-                    let save_path = if path.ends_with('/') {
-                        format!(
-                            "{}{}",
-                            path,
-                            key.rsplit_once('/').map(|(_, f)| f).unwrap_or(&key)
-                        )
-                    } else {
-                        path
-                    };
                     match std::fs::write(&save_path, bytes) {
                         Ok(()) => log::info!("Download saved to: {}", save_path),
                         Err(e) => log::error!("Failed to save file: {}: {}", save_path, e),
@@ -610,12 +651,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 }
             }
         }
-        Message::UploadPathChanged(path) => {
-            app.upload_path = path;
-            Task::none()
-        }
-        Message::DownloadPathChanged(path) => {
-            app.download_path = path;
+        Message::DownloadDirChanged(path) => {
+            app.download_dir = path;
             Task::none()
         }
         Message::ClearError => {
@@ -650,7 +687,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 button("×").on_press(Message::ClearError),
             ]
             .spacing(10)
-            .align_y(iced::Alignment::Center),
+            .align_y(Alignment::Center),
         )
         .padding(10)
         .style(|_: &Theme| container::Style {
@@ -660,284 +697,575 @@ pub fn view(app: &App) -> Element<'_, Message> {
             text_color: Some(iced::Color::WHITE),
             ..Default::default()
         })
-        .width(iced::Length::Fill);
+        .width(Length::Fill);
         elements.push(error_bar.into());
     }
 
-    let page_content = match app.current_page {
-        Page::Connections => view_connections(app),
-        Page::Buckets => view_buckets(app),
-        Page::Objects => view_objects(app),
-    };
-    elements.push(page_content);
+    let side_panel = view_left_panel(app);
+    let right_area = view_right_content(app);
+    let status_line = view_status_bar(app);
+
+    let body = row![
+        side_panel,
+        rule::vertical(1),
+        container(right_area)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .padding(20),
+    ]
+    .height(Length::Fill);
+
+    elements.push(
+        column![body, rule::horizontal(1), status_line,]
+            .spacing(0)
+            .height(Length::Fill)
+            .into(),
+    );
 
     if app.is_loading {
         let loading = container(text(t!("loading").to_string()).size(24))
-            .width(iced::Length::Fill)
-            .height(iced::Length::Fill)
-            .center_x(iced::Length::Fill)
-            .center_y(iced::Length::Fill);
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill);
         elements.push(loading.into());
     }
 
-    let content = container(column(elements).padding(20).spacing(10))
-        .width(iced::Length::Fill)
-        .height(iced::Length::Fill);
+    let content = container(column(elements).spacing(0))
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+    let mut stack_elements: Vec<Element<Message>> = vec![content.into()];
 
     if app.show_settings {
         let overlay = container(view_settings(app))
-            .width(iced::Length::Fill)
-            .height(iced::Length::Fill)
+            .width(Length::Fill)
+            .height(Length::Fill)
             .style(|_: &Theme| container::Style {
                 background: Some(iced::Background::Color(iced::Color::from_rgba(
                     0.0, 0.0, 0.0, 0.6,
                 ))),
                 ..Default::default()
             })
-            .center_x(iced::Length::Fill)
-            .center_y(iced::Length::Fill);
+            .center_x(Length::Fill)
+            .center_y(Length::Fill);
 
-        iced::widget::stack(vec![content.into(), iced::widget::opaque(overlay).into()]).into()
-    } else {
-        content.into()
+        stack_elements.push(iced::widget::opaque(overlay).into());
     }
-}
 
-fn view_connections(app: &App) -> Element<'_, Message> {
-    let p = custom_palette(&app.theme);
-    let header = row![
-        text(t!("connections").to_string()).size(24),
-        button(text(t!("add_connection").to_string())).on_press(Message::ConnectionAdd),
-        container(button("⚙").on_press(Message::ToggleSettings))
-            .width(iced::Length::Fill)
-            .align_x(iced::Alignment::End),
-    ]
-    .spacing(10)
-    .align_y(iced::Alignment::Center);
-
-    let mut content = column![header].spacing(10);
-
-    if let Some(form) = &app.connection_form {
-        let placeholder_name = t!("name").to_string();
-        let placeholder_endpoint = t!("endpoint_hint").to_string();
-        let placeholder_region = t!("region").to_string();
-        let placeholder_ak = t!("access_key_id").to_string();
-        let placeholder_sk = t!("secret_access_key").to_string();
-
-        let fields = column![
-            text(if form.id.is_some() {
-                t!("edit_connection_title").to_string()
-            } else {
-                t!("add_connection_title").to_string()
+    if app.connection_form.is_some() {
+        let overlay = container(view_connection_form(app))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(|_: &Theme| container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgba(
+                    0.0, 0.0, 0.0, 0.6,
+                ))),
+                ..Default::default()
             })
-            .size(18),
-            text_input(&placeholder_name, &form.name).on_input(|v| {
-                Message::ConnectionFormChanged {
-                    field: "name".into(),
-                    value: v,
-                }
-            }),
-            text_input(&placeholder_endpoint, &form.endpoint).on_input(|v| {
-                Message::ConnectionFormChanged {
-                    field: "endpoint".into(),
-                    value: v,
-                }
-            },),
-            text_input(&placeholder_region, &form.region).on_input(|v| {
-                Message::ConnectionFormChanged {
-                    field: "region".into(),
-                    value: v,
-                }
-            }),
-            text_input(&placeholder_ak, &form.access_key_id).on_input(|v| {
-                Message::ConnectionFormChanged {
-                    field: "access_key_id".into(),
-                    value: v,
-                }
-            }),
-            text_input(&placeholder_sk, &form.secret_access_key).on_input(|v| {
-                Message::ConnectionFormChanged {
-                    field: "secret_access_key".into(),
-                    value: v,
-                }
-            }),
-            toggler(form.force_path_style)
-                .label(t!("force_path_style_label").to_string())
-                .on_toggle(|b| Message::ConnectionFormChanged {
-                    field: "force_path_style".into(),
-                    value: b.to_string(),
-                }),
+            .center_x(Length::Fill)
+            .center_y(Length::Fill);
+
+        stack_elements.push(iced::widget::opaque(overlay).into());
+    }
+
+    if let Some(ref del_id) = app.pending_delete {
+        let conn_name = app.config_store.list().iter()
+            .find(|c| &c.id == del_id).map(|c| c.name.as_str()).unwrap_or("?");
+        let p = custom_palette(&app.theme);
+        let panel = column![
+            text(t!("delete_confirm_title").to_string()).size(18),
+            rule::horizontal(1),
+            text(t!("delete_confirm_message", name = conn_name).to_string()).size(14),
             row![
-                button(text(t!("save").to_string())).on_press(Message::ConnectionFormSave),
-                button(text(t!("cancel").to_string())).on_press(Message::ConnectionFormCancel),
+                container(button(text(t!("confirm").to_string())).on_press(Message::ConfirmDelete(del_id.clone())))
+                    .width(Length::Fill)
+                    .align_x(Alignment::End),
+                button(text(t!("cancel").to_string())).on_press(Message::CancelDelete),
             ]
             .spacing(10),
         ]
-        .spacing(8)
-        .padding(15);
+        .spacing(16)
+        .padding(20);
 
-        content = column![
-            content,
-            container(fields)
-                .style(|theme: &Theme| container::Style {
-                    background: Some(iced::Background::Color(custom_palette(theme).surface_raised)),
-                    border: iced::Border::default().rounded(4),
-                    ..Default::default()
-                })
-                .width(iced::Length::Fill),
-        ]
-        .spacing(10);
-    }
+        let content = container(panel)
+            .width(360)
+            .style(move |_: &Theme| container::Style {
+                background: Some(iced::Background::Color(p.surface_raised)),
+                border: iced::Border::default().rounded(8),
+                ..Default::default()
+            });
 
-    let items: Vec<Element<Message>> = app
-        .config_store
-        .list()
-        .iter()
-        .map(|conn| {
-            let card = column![
-                text(&conn.name).size(16),
-                text(&conn.endpoint)
-                    .size(12)
-                    .color(p.text_secondary),
-            ]
-            .spacing(4);
-
-            row![
-                container(card).width(iced::Length::Fill),
-                button(text(t!("connect").to_string()))
-                    .on_press(Message::ConnectionSelected(conn.id.clone())),
-                button(text(t!("edit").to_string()))
-                    .on_press(Message::ConnectionEdit(conn.id.clone())),
-                button(text(t!("delete").to_string()))
-                    .on_press(Message::ConnectionDelete(conn.id.clone())),
-            ]
-            .spacing(8)
-            .align_y(iced::Alignment::Center)
-            .into()
-        })
-        .collect();
-
-    let content = if items.is_empty() {
-        content
-    } else {
-        let list = container(column(items).spacing(6).padding(10))
-            .style(|theme: &Theme| container::Style {
-                background: Some(iced::Background::Color(custom_palette(theme).surface)),
-                border: iced::Border::default().rounded(4),
+        let overlay = container(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(|_: &Theme| container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
                 ..Default::default()
             })
-            .width(iced::Length::Fill);
+            .center_x(Length::Fill)
+            .center_y(Length::Fill);
 
-        column![content, list].spacing(10)
-    };
+        stack_elements.push(iced::widget::opaque(overlay).into());
+    }
 
-    container(content).width(iced::Length::Fill).into()
+    if let Some(ref del_key) = app.pending_delete_object {
+        let obj_name = del_key.rsplit_once('/').map(|(_, n)| n).unwrap_or(del_key);
+        let p = custom_palette(&app.theme);
+        let panel = column![
+            text(t!("delete_object_confirm_title").to_string()).size(18),
+            rule::horizontal(1),
+            text(t!("delete_object_confirm_message", name = obj_name).to_string()).size(14),
+            row![
+                container(button(text(t!("confirm").to_string())).on_press(Message::ConfirmDeleteObject(del_key.clone())))
+                    .width(Length::Fill)
+                    .align_x(Alignment::End),
+                button(text(t!("cancel").to_string())).on_press(Message::CancelDeleteObject),
+            ]
+            .spacing(10),
+        ]
+        .spacing(16)
+        .padding(20);
+
+        let content = container(panel)
+            .width(360)
+            .style(move |_: &Theme| container::Style {
+                background: Some(iced::Background::Color(p.surface_raised)),
+                border: iced::Border::default().rounded(8),
+                ..Default::default()
+            });
+
+        let overlay = container(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(|_: &Theme| container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
+                ..Default::default()
+            })
+            .center_x(Length::Fill)
+            .center_y(Length::Fill);
+
+        stack_elements.push(iced::widget::opaque(overlay).into());
+    }
+
+    iced::widget::stack(stack_elements).into()
 }
 
-fn view_buckets(app: &App) -> Element<'_, Message> {
+fn view_left_panel(app: &App) -> Element<'_, Message> {
     let p = custom_palette(&app.theme);
-    let header = row![
-        button(text(t!("back").to_string())).on_press(Message::GoToConnections),
-        text(t!("buckets").to_string()).size(24),
-        container(button("⚙").on_press(Message::ToggleSettings))
-            .width(iced::Length::Fill)
-            .align_x(iced::Alignment::End),
-    ]
-    .spacing(10)
-    .align_y(iced::Alignment::Center);
+    let palette = app.theme.palette();
+    let connections = app.config_store.list();
 
-    let items: Vec<Element<Message>> = app
-        .buckets
-        .iter()
-        .map(|b| {
-            let card = row![
-                text(format!("📁 {}", b.name)).size(16),
-                container(
-                    text(
-                        b.creation_date
-                            .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
-                            .unwrap_or_default()
-                    )
+    let hover_bg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.08);
+    let icon_btn_style = move |_: &Theme, s: button::Status| -> button::Style {
+        let (bg, border) = match s {
+            button::Status::Hovered | button::Status::Pressed => (
+                Some(iced::Background::Color(hover_bg)),
+                iced::Border {
+                    color: hover_bg,
+                    width: 1.0,
+                    radius: 4.0.into(),
+                },
+            ),
+            _ => (None, iced::Border::default().width(0)),
+        };
+        button::Style {
+            background: bg,
+            border,
+            text_color: p.text_secondary,
+            shadow: iced::Shadow::default(),
+            ..Default::default()
+        }
+    };
+
+    let svg_style = |theme: &Theme, _: svg::Status| svg::Style {
+        color: Some(custom_palette(theme).text_secondary),
+    };
+
+    let header = container(
+        row![
+            text(t!("storage_browser").to_string())
+                .size(13)
+                .color(p.text_secondary),
+            container(
+                button(
+                    svg(SvgHandle::from_memory(
+                        include_bytes!("../icons/add-16-filled.svg").to_vec(),
+                    ))
+                    .width(Length::Fixed(16.0))
+                    .height(Length::Fixed(16.0))
+                    .style(svg_style),
+                )
+                .style(icon_btn_style)
+                .on_press(Message::ConnectionAdd)
+                .padding(Padding::from([2, 6]))
+            )
+            .width(Length::Fill)
+            .align_x(Alignment::End),
+            button(
+                svg(SvgHandle::from_memory(
+                    include_bytes!("../icons/settings-16-filled.svg").to_vec(),
+                ))
+                .width(Length::Fixed(16.0))
+                .height(Length::Fixed(16.0))
+                .style(svg_style),
+            )
+            .style(icon_btn_style)
+            .on_press(Message::ToggleSettings)
+            .padding(Padding::from([2, 6])),
+        ]
+        .spacing(2)
+        .align_y(Alignment::Center),
+    )
+    .padding(Padding::from([12, 16]))
+    .width(Length::Fill);
+
+    let mut items: Vec<Element<Message>> = Vec::new();
+
+    if connections.is_empty() {
+        items.push(
+            container(
+                text(t!("no_connection").to_string())
                     .size(12)
                     .color(p.text_secondary),
-                )
-                .width(iced::Length::Fill),
-                button(text(t!("open").to_string()))
-                    .on_press(Message::BucketSelected(b.name.clone())),
-            ]
-            .spacing(10)
-            .align_y(iced::Alignment::Center);
+            )
+            .padding(Padding::from([8, 16]))
+            .width(Length::Fill)
+            .into(),
+        );
+    }
 
-            container(card)
-                .padding(10)
-                .style(|theme: &Theme| container::Style {
-                    background: Some(iced::Background::Color(custom_palette(theme).surface)),
-                    border: iced::Border::default().rounded(4),
-                    ..Default::default()
+    for conn in connections.iter() {
+        let is_expanded = app.expanded_connection.as_ref() == Some(&conn.id);
+        let is_connected = app.selected_connection_id.as_ref() == Some(&conn.id);
+
+        let icon = if is_expanded { "▼" } else { "▶" };
+
+        let action_btn_style = move |_: &Theme, s: button::Status| -> button::Style {
+            let hbg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.08);
+            let (bg, border) = match s {
+                button::Status::Hovered | button::Status::Pressed => (
+                    Some(iced::Background::Color(hbg)),
+                    iced::Border { color: hbg, width: 1.0, radius: 4.0.into() },
+                ),
+                _ => (None, iced::Border::default().width(0)),
+            };
+            button::Style { background: bg, border, text_color: p.text_secondary, shadow: iced::Shadow::default(), ..Default::default() }
+        };
+        let action_svg = |data: &[u8]| {
+            svg(SvgHandle::from_memory(data.to_vec()))
+                .width(Length::Fixed(14.0)).height(Length::Fixed(14.0))
+                .style(|t: &Theme, _: svg::Status| svg::Style { color: Some(custom_palette(t).text_secondary) })
+        };
+
+        let edit_btn = button(action_svg(include_bytes!("../icons/edit-16-filled.svg")))
+            .style(action_btn_style).on_press(Message::ConnectionEdit(conn.id.clone())).padding(Padding::from([2, 4]));
+        let delete_btn = button(action_svg(include_bytes!("../icons/delete-16-filled.svg")))
+            .style(action_btn_style).on_press(Message::ConnectionDelete(conn.id.clone())).padding(Padding::from([2, 4]));
+
+        let conn_row = row![
+            text(icon).size(10).color(p.text_secondary),
+            text(&conn.name).size(13),
+            container(edit_btn).width(Length::Fill).align_x(Alignment::End),
+            delete_btn,
+            text("●").size(8).color(if is_connected {
+                iced::Color::from_rgb(0.3, 0.8, 0.3)
+            } else {
+                p.text_secondary
+            }),
+        ]
+        .spacing(2)
+        .align_y(Alignment::Center);
+
+        let msg = if is_expanded {
+            Message::ToggleConnectionExpand(conn.id.clone())
+        } else {
+            Message::ConnectionSelected(conn.id.clone())
+        };
+
+        let row_bg = if is_expanded {
+            Some(iced::Background::Color(iced::Color::from_rgba(
+                1.0, 1.0, 1.0, 0.04,
+            )))
+        } else {
+            None
+        };
+
+        items.push(
+            button(conn_row)
+                .on_press(msg)
+                .style(move |_: &Theme, s: button::Status| {
+                    let bg = match s {
+                        button::Status::Hovered | button::Status::Pressed => Some(
+                            iced::Background::Color(iced::Color::from_rgba(1.0, 1.0, 1.0, 0.08)),
+                        ),
+                        _ => row_bg,
+                    };
+                    button::Style {
+                        background: bg,
+                        text_color: palette.text,
+                        border: iced::Border::default(),
+                        shadow: iced::Shadow::default(),
+                        ..Default::default()
+                    }
                 })
-                .width(iced::Length::Fill)
-                .into()
+                .padding(Padding::from([8, 16]))
+                .width(Length::Fill)
+                .into(),
+        );
+
+        if is_expanded {
+            if app.buckets.is_empty() && app.is_loading {
+                items.push(
+                    container(text("  ...").size(12).color(p.text_secondary))
+                        .padding(Padding::from([4, 16]))
+                        .into(),
+                );
+            }
+            for bucket in &app.buckets {
+                let is_active = app.current_bucket.as_deref() == Some(&bucket.name);
+                let bucket_bg = if is_active {
+                    Some(iced::Background::Color(iced::Color::from_rgba(
+                        1.0, 1.0, 1.0, 0.08,
+                    )))
+                } else {
+                    None
+                };
+                items.push(
+                    button(
+                        row![
+                            svg(SvgHandle::from_memory(include_bytes!("../icons/folder-16-filled.svg").to_vec()))
+                                .width(Length::Fixed(14.0)).height(Length::Fixed(14.0))                                .style(svg_style),
+                            text(&bucket.name).size(12),
+                        ]
+                            .spacing(6)
+                            .align_y(Alignment::Center),
+                    )
+                    .on_press(Message::BucketSelected(bucket.name.clone()))
+                    .style(move |_: &Theme, s: button::Status| {
+                        let bg = match s {
+                            button::Status::Hovered | button::Status::Pressed => {
+                                Some(iced::Background::Color(iced::Color::from_rgba(
+                                    1.0, 1.0, 1.0, 0.08,
+                                )))
+                            }
+                            _ => bucket_bg,
+                        };
+                        button::Style {
+                            background: bg,
+                            text_color: palette.text,
+                            border: iced::Border::default(),
+                            shadow: iced::Shadow::default(),
+                            ..Default::default()
+                        }
+                    })
+                    .padding(Padding::from([6, 16]))
+                    .width(Length::Fill)
+                    .into(),
+                );
+            }
+        }
+    }
+
+    let mut list_elements: Vec<Element<Message>> = vec![header.into(), rule::horizontal(1).into()];
+    list_elements.extend(items);
+
+    container(scrollable(column(list_elements).spacing(0)))
+        .width(260)
+        .style(|theme: &Theme| {
+            let p = custom_palette(theme);
+            container::Style {
+                background: Some(iced::Background::Color(p.surface)),
+                ..Default::default()
+            }
         })
-        .collect();
+        .height(Length::Fill)
+        .into()
+}
 
-    let list = scrollable(column(items).spacing(6));
+fn view_right_content(app: &App) -> Element<'_, Message> {
+    if app.current_bucket.is_some() {
+        view_objects(app)
+    } else {
+        let p = custom_palette(&app.theme);
+        let hint = if app.expanded_connection.is_some() {
+            t!("select_bucket_hint")
+        } else if app.config_store.list().is_empty() {
+            t!("no_connection")
+        } else {
+            t!("select_connection_hint")
+        };
+        container(
+            text(hint.to_string())
+                .size(16)
+                .color(p.text_secondary),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .into()
+    }
+}
 
-    container(column![header, rule::horizontal(1), list].spacing(10))
-        .width(iced::Length::Fill)
+fn view_connection_form(app: &App) -> Element<'_, Message> {
+    let form = app.connection_form.as_ref().unwrap();
+    let title = if form.id.is_some() {
+        t!("edit_connection_title").to_string()
+    } else {
+        t!("add_connection_title").to_string()
+    };
+
+    let p = custom_palette(&app.theme);
+    let btn_style = move |_: &Theme, s: button::Status| -> button::Style {
+        let hbg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.08);
+        let (bg, border) = match s {
+            button::Status::Hovered | button::Status::Pressed => (
+                Some(iced::Background::Color(hbg)),
+                iced::Border { color: hbg, width: 1.0, radius: 4.0.into() },
+            ),
+            _ => (None, iced::Border::default().width(0)),
+        };
+        button::Style { background: bg, border, text_color: p.text_secondary, shadow: iced::Shadow::default(), ..Default::default() }
+    };
+    let svg_style = move |_: &Theme, _: svg::Status| svg::Style { color: Some(p.text_secondary) };
+    let dismiss = svg(SvgHandle::from_memory(include_bytes!("../icons/dismiss-16-filled.svg").to_vec()))
+        .width(Length::Fixed(16.0)).height(Length::Fixed(16.0)).style(svg_style);
+    let panel = column![
+        row![
+            text(title).size(18),
+            container(button(dismiss).style(btn_style).on_press(Message::ConnectionFormCancel))
+                .width(Length::Fill)
+                .align_x(Alignment::End),
+        ]
+        .spacing(10)
+        .align_y(Alignment::Center),
+        rule::horizontal(1),
+        text_input(&t!("name").to_string(), &form.name).on_input(|v| {
+            Message::ConnectionFormChanged {
+                field: "name".into(),
+                value: v,
+            }
+        }),
+        text_input(&t!("endpoint_hint").to_string(), &form.endpoint).on_input(|v| {
+            Message::ConnectionFormChanged {
+                field: "endpoint".into(),
+                value: v,
+            }
+        }),
+        text_input(&t!("region").to_string(), &form.region).on_input(|v| {
+            Message::ConnectionFormChanged {
+                field: "region".into(),
+                value: v,
+            }
+        }),
+        text_input(&t!("access_key_id").to_string(), &form.access_key_id).on_input(|v| {
+            Message::ConnectionFormChanged {
+                field: "access_key_id".into(),
+                value: v,
+            }
+        }),
+        text_input(
+            &t!("secret_access_key").to_string(),
+            &form.secret_access_key
+        )
+        .on_input(|v| {
+            Message::ConnectionFormChanged {
+                field: "secret_access_key".into(),
+                value: v,
+            }
+        }),
+        toggler(form.force_path_style)
+            .label(t!("force_path_style_label").to_string())
+            .on_toggle(|b| Message::ConnectionFormChanged {
+                field: "force_path_style".into(),
+                value: b.to_string(),
+            }),
+        row![
+            button(text(t!("save").to_string())).on_press(Message::ConnectionFormSave),
+            button(text(t!("cancel").to_string())).on_press(Message::ConnectionFormCancel),
+        ]
+        .spacing(10),
+    ]
+    .spacing(10)
+    .padding(20);
+
+    container(panel)
+        .width(420)
+        .style(|theme: &Theme| container::Style {
+            background: Some(iced::Background::Color(
+                custom_palette(theme).surface_raised,
+            )),
+            border: iced::Border::default().rounded(8),
+            ..Default::default()
+        })
         .into()
 }
 
 fn view_objects(app: &App) -> Element<'_, Message> {
     let p = custom_palette(&app.theme);
     let unknown_label = t!("unknown").to_string();
-    let bucket_name = app.current_bucket.as_deref().unwrap_or(&unknown_label);
-    let placeholder_local_path = t!("local_file_path").to_string();
-    let placeholder_download_path = t!("download_save_path").to_string();
+    let bucket_name = app.current_bucket.as_deref().unwrap_or(&unknown_label).to_string();
+    let icon_btn_style = move |_: &Theme, s: button::Status| -> button::Style {
+        let hbg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.08);
+        let (bg, border) = match s {
+            button::Status::Hovered | button::Status::Pressed => (
+                Some(iced::Background::Color(hbg)),
+                iced::Border { color: hbg, width: 1.0, radius: 4.0.into() },
+            ),
+            _ => (None, iced::Border::default().width(0)),
+        };
+        button::Style { background: bg, border, text_color: p.text_secondary, shadow: iced::Shadow::default(), ..Default::default() }
+    };
+    let svg_style = |t: &Theme, _: svg::Status| svg::Style { color: Some(custom_palette(t).text_secondary) };
+    let refresh_svg = svg(SvgHandle::from_memory(include_bytes!("../icons/arrow-clockwise-16-filled.svg").to_vec()))
+        .width(Length::Fixed(16.0)).height(Length::Fixed(16.0)).style(svg_style);
+    let upload_svg = svg(SvgHandle::from_memory(include_bytes!("../icons/cloud-arrow-up-16-filled.svg").to_vec()))
+        .width(Length::Fixed(16.0)).height(Length::Fixed(16.0)).style(svg_style);
 
     let breadcrumb = row![
-        button(text(t!("back").to_string())).on_press(Message::NavigateUp),
-        text(format!("📁 {}", bucket_name)).size(24),
-        text(&app.current_prefix)
-            .size(14)
-            .color(p.text_secondary),
-        button(text(t!("refresh").to_string())).on_press(Message::RefreshObjects),
-        container(button("⚙").on_press(Message::ToggleSettings))
-            .width(iced::Length::Fill)
-            .align_x(iced::Alignment::End),
+        row![
+            svg(SvgHandle::from_memory(include_bytes!("../icons/folder-16-filled.svg").to_vec()))
+                .width(Length::Fixed(16.0)).height(Length::Fixed(16.0)).style(svg_style),
+            text(bucket_name).size(16),
+        ]
+        .spacing(4)
+        .align_y(Alignment::Center),
+        text(&app.current_prefix).size(14).color(p.text_secondary),
+        container(button(refresh_svg).style(icon_btn_style).on_press(Message::RefreshObjects))
+            .width(Length::Fill)
+            .align_x(Alignment::End),
+        button(upload_svg).style(icon_btn_style).on_press(Message::UploadObject),
     ]
     .spacing(10)
-    .align_y(iced::Alignment::Center);
-
-    let upload_row = row![
-        text_input(&placeholder_local_path, &app.upload_path)
-            .on_input(Message::UploadPathChanged)
-            .width(iced::Length::Fill),
-        button(text(t!("upload").to_string())).on_press(Message::UploadObject),
-    ]
-    .spacing(8)
-    .align_y(iced::Alignment::Center);
-
-    let download_row = row![
-        text_input(&placeholder_download_path, &app.download_path)
-            .on_input(Message::DownloadPathChanged)
-            .width(iced::Length::Fill),
-    ]
-    .spacing(8)
-    .align_y(iced::Alignment::Center);
+    .align_y(Alignment::Center);
 
     let mut items: Vec<Element<Message>> = Vec::new();
+
+    let row_style = |theme: &Theme, _: button::Status| -> button::Style {
+        let p = custom_palette(theme);
+        button::Style {
+            background: Some(iced::Background::Color(p.surface)),
+            text_color: theme.palette().text,
+            border: iced::Border::default().rounded(4),
+            shadow: iced::Shadow::default(),
+            ..Default::default()
+        }
+    };
 
     if !app.current_prefix.is_empty() {
         items.push(
             button(
                 row![
-                    text("📂 ..").size(16),
-                    container(text("").size(12)).width(iced::Length::Fill),
+                    text("📂 ..").size(14),
+                    container(text("")).width(Length::Fill),
                 ]
                 .spacing(10)
-                .align_y(iced::Alignment::Center),
+                .align_y(Alignment::Center),
             )
             .on_press(Message::NavigateUp)
+            .style(row_style)
+            .padding(Padding::from([8, 16]))
             .into(),
         );
     }
@@ -948,24 +1276,35 @@ fn view_objects(app: &App) -> Element<'_, Message> {
             .unwrap_or(prefix)
             .trim_end_matches('/');
 
+        let folder_delete_btn = button(
+            svg(SvgHandle::from_memory(include_bytes!("../icons/delete-16-filled.svg").to_vec()))
+                .width(Length::Fixed(16.0)).height(Length::Fixed(16.0)).style(svg_style),
+        )
+        .style(icon_btn_style)
+        .on_press(Message::DeletePrefix(prefix.clone()));
+
         items.push(
             button(
                 row![
-                    text(format!("📁 {}", display_name)).size(16),
-                    container(
-                        text(t!("folder").to_string())
-                    .size(12)
-                    .color(p.text_secondary),
-                    )
-                    .width(iced::Length::Fill),
+                    row![
+                        svg(SvgHandle::from_memory(include_bytes!("../icons/folder-16-filled.svg").to_vec()))
+                            .width(Length::Fixed(14.0)).height(Length::Fixed(14.0)).style(svg_style),
+                        text(display_name).size(14),
+                    ]
+                    .spacing(4)
+                    .align_y(Alignment::Center),
+                    container(folder_delete_btn)
+                        .width(Length::Fill)
+                        .align_x(Alignment::End),
                 ]
                 .spacing(10)
-                .align_y(iced::Alignment::Center),
+                .align_y(Alignment::Center),
             )
             .on_press(Message::PrefixSelected(prefix.clone()))
+            .style(row_style)
+            .padding(Padding::from([8, 16]))
             .into(),
         );
-        items.push(rule::horizontal(1).into());
     }
 
     for obj in &app.objects {
@@ -978,13 +1317,15 @@ fn view_objects(app: &App) -> Element<'_, Message> {
         }
 
         let row_content = row![
-            text(format!("📄 {}", name)).size(14),
-            container(
-                text(format_size(obj.size))
-                    .size(12)
-                    .color(p.text_secondary),
-            )
-            .width(iced::Length::Fill),
+            row![
+                svg(SvgHandle::from_memory(include_bytes!("../icons/document-16-filled.svg").to_vec()))
+                    .width(Length::Fixed(14.0)).height(Length::Fixed(14.0)).style(svg_style),
+                text(name).size(14),
+            ]
+            .spacing(4)
+            .align_y(Alignment::Center),
+            container(text(format_size(obj.size)).size(12).color(p.text_secondary),)
+                .width(Length::Fill),
             text(
                 obj.last_modified
                     .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
@@ -992,28 +1333,41 @@ fn view_objects(app: &App) -> Element<'_, Message> {
             )
             .size(12)
             .color(p.text_secondary),
-            button(text(t!("download").to_string()))
-                .on_press(Message::DownloadObject(obj.key.clone())),
-            button(text(t!("delete").to_string())).on_press(Message::DeleteObject(obj.key.clone())),
+            button(
+                svg(SvgHandle::from_memory(include_bytes!("../icons/cloud-arrow-down-16-filled.svg").to_vec()))
+                    .width(Length::Fixed(16.0)).height(Length::Fixed(16.0)).style(svg_style),
+            )
+            .style(icon_btn_style)
+            .on_press(Message::DownloadObject(obj.key.clone())),
+            button(
+                svg(SvgHandle::from_memory(include_bytes!("../icons/delete-16-filled.svg").to_vec()))
+                    .width(Length::Fixed(16.0)).height(Length::Fixed(16.0)).style(svg_style),
+            )
+            .style(icon_btn_style)
+            .on_press(Message::DeleteObject(obj.key.clone())),
         ]
         .spacing(10)
-        .align_y(iced::Alignment::Center);
+        .align_y(Alignment::Center);
 
         items.push(
             container(row_content)
-                .padding(Padding::new(8.0).right(24.0))
-                .width(iced::Length::Fill)
+                .padding(Padding::from([8, 16]))
+                .style(|theme: &Theme| container::Style {
+                    background: Some(iced::Background::Color(custom_palette(theme).surface)),
+                    border: iced::Border::default().rounded(4),
+                    ..Default::default()
+                })
+                .width(Length::Fill)
                 .into(),
         );
-        items.push(rule::horizontal(1).into());
     }
 
     if app.is_truncated {
         items.push(
             container(button(text(t!("load_more").to_string())).on_press(Message::LoadMoreObjects))
-                .padding(Padding::new(8.0).right(24.0))
-                .center_x(iced::Length::Fill)
-                .width(iced::Length::Fill)
+                .padding(Padding::from([8, 16]))
+                .center_x(Length::Fill)
+                .width(Length::Fill)
                 .into(),
         );
     }
@@ -1024,19 +1378,60 @@ fn view_objects(app: &App) -> Element<'_, Message> {
         column![
             breadcrumb,
             rule::horizontal(1),
-            upload_row,
-            download_row,
-            rule::horizontal(1),
             list,
         ]
         .spacing(10),
     )
-    .width(iced::Length::Fill)
+    .width(Length::Fill)
+    .height(Length::Fill)
     .into()
 }
 
+fn view_status_bar(app: &App) -> Element<'_, Message> {
+    let p = custom_palette(&app.theme);
+
+    let status_text = if app.selected_connection_id.is_some() {
+        let conn_name = app
+            .config_store
+            .list()
+            .iter()
+            .find(|c| Some(&c.id) == app.selected_connection_id.as_ref())
+            .map(|c| c.name.as_str())
+            .unwrap_or("?");
+        let bucket_info = app
+            .current_bucket
+            .as_deref()
+            .map(|b| format!(" | bucket: {}", b))
+            .unwrap_or_default();
+        let obj_count = if !app.objects.is_empty() {
+            format!(" | {} {}", app.objects.len(), t!("status_objects"))
+        } else if !app.buckets.is_empty() {
+            format!(" | {} {}", app.buckets.len(), t!("status_buckets"))
+        } else {
+            String::new()
+        };
+        format!(
+            "{}: {}{}{}",
+            t!("status_connected"),
+            conn_name,
+            bucket_info,
+            obj_count
+        )
+    } else {
+        t!("status_ready").to_string()
+    };
+
+    row![text(status_text).size(11).color(p.text_secondary),]
+        .padding(Padding::from([6, 16]))
+        .align_y(Alignment::Center)
+        .into()
+}
+
 fn view_settings(app: &App) -> Element<'_, Message> {
-    let theme_names: Vec<String> = AVAILABLE_THEMES.iter().map(|(n, _)| n.to_string()).collect();
+    let theme_names: Vec<String> = AVAILABLE_THEMES
+        .iter()
+        .map(|(n, _)| n.to_string())
+        .collect();
     let lang_names: Vec<String> = LANGUAGES.iter().map(|(n, _)| n.to_string()).collect();
     let current_locale = rust_i18n::locale().to_string();
     let current_lang = LANGUAGES
@@ -1045,31 +1440,49 @@ fn view_settings(app: &App) -> Element<'_, Message> {
         .map(|(name, _)| name.to_string())
         .unwrap_or_else(|| "English".to_string());
 
+    let p = custom_palette(&app.theme);
+    let btn_style = move |_: &Theme, s: button::Status| -> button::Style {
+        let hbg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.08);
+        let (bg, border) = match s {
+            button::Status::Hovered | button::Status::Pressed => (
+                Some(iced::Background::Color(hbg)),
+                iced::Border { color: hbg, width: 1.0, radius: 4.0.into() },
+            ),
+            _ => (None, iced::Border::default().width(0)),
+        };
+        button::Style { background: bg, border, text_color: p.text_secondary, shadow: iced::Shadow::default(), ..Default::default() }
+    };
+    let svg_style = move |_: &Theme, _: svg::Status| svg::Style { color: Some(p.text_secondary) };
+    let dismiss = svg(SvgHandle::from_memory(include_bytes!("../icons/dismiss-16-filled.svg").to_vec()))
+        .width(Length::Fixed(16.0)).height(Length::Fixed(16.0)).style(svg_style);
     let panel = column![
         row![
             text(t!("settings").to_string()).size(20),
-            container(button("×").on_press(Message::ToggleSettings))
-                .width(iced::Length::Fill)
-                .align_x(iced::Alignment::End),
+            container(button(dismiss).style(btn_style).on_press(Message::ToggleSettings))
+                .width(Length::Fill)
+                .align_x(Alignment::End),
         ]
         .spacing(10)
-        .align_y(iced::Alignment::Center),
-        iced::widget::rule::horizontal(1),
+        .align_y(Alignment::Center),
+        rule::horizontal(1),
         text(t!("theme").to_string()).size(16),
-        pick_list(theme_names, Some(app.current_theme_name.clone()), Message::ThemeChanged),
-        text(t!("language").to_string()).size(16),
         pick_list(
-            lang_names,
-            Some(current_lang),
-            |name| {
-                let code = LANGUAGES
-                    .iter()
-                    .find(|(n, _)| *n == name)
-                    .map(|(_, c)| c.to_string())
-                    .unwrap_or_else(|| "en".to_string());
-                Message::LanguageChanged(code)
-            },
+            theme_names,
+            Some(app.current_theme_name.clone()),
+            Message::ThemeChanged
         ),
+        text(t!("language").to_string()).size(16),
+        pick_list(lang_names, Some(current_lang), |name| {
+            let code = LANGUAGES
+                .iter()
+                .find(|(n, _)| *n == name)
+                .map(|(_, c)| c.to_string())
+                .unwrap_or_else(|| "en".to_string());
+            Message::LanguageChanged(code)
+        },),
+        text(t!("download_dir").to_string()).size(16),
+        text_input(&t!("download_dir_hint").to_string(), &app.download_dir)
+            .on_input(Message::DownloadDirChanged),
     ]
     .spacing(15)
     .padding(20);
@@ -1077,7 +1490,9 @@ fn view_settings(app: &App) -> Element<'_, Message> {
     container(panel)
         .width(360)
         .style(|theme: &Theme| container::Style {
-            background: Some(iced::Background::Color(custom_palette(theme).surface_raised)),
+            background: Some(iced::Background::Color(
+                custom_palette(theme).surface_raised,
+            )),
             border: iced::Border::default().rounded(8),
             ..Default::default()
         })

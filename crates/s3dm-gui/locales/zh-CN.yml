@@ -52,8 +52,29 @@ select_file_path: "请选择文件路径"
 set_download_path: "请设置下载保存路径"
 read_file_failed: "读取文件失败: %{error}"
 
+# IDE Layout
+storage_browser: "存储浏览器"
+no_connection: "暂无连接"
+select_connection_hint: "请从左侧面板选择一个连接"
+select_bucket_hint: "请从左侧面板选择一个存储桶"
+
+# Confirm dialog
+delete_confirm_title: "删除连接"
+delete_confirm_message: "确定要删除 %{name} 吗？"
+delete_object_confirm_title: "删除文件"
+delete_object_confirm_message: "确定要删除 %{name} 吗？"
+confirm: "确定"
+
+# Status bar
+status_ready: "就绪"
+status_connected: "已连接"
+status_objects: "个对象"
+status_buckets: "个存储桶"
+
 # Settings
 settings: "设置"
 theme: "主题"
 language: "语言"
+download_dir: "下载目录"
+download_dir_hint: "文件下载保存路径"
 close: "关闭"
