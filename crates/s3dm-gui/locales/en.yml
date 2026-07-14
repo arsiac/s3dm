@@ -67,6 +67,8 @@ delete_confirm_title: "Delete Connection"
 delete_confirm_message: "Are you sure you want to delete %{name}?"
 delete_object_confirm_title: "Delete File"
 delete_object_confirm_message: "Are you sure you want to delete %{name}?"
+delete_prefix_confirm_title: "Delete Folder"
+delete_prefix_confirm_message: "Are you sure you want to delete the folder \"%{name}\" and all its contents?"
 confirm: "Confirm"
 
 # Status bar

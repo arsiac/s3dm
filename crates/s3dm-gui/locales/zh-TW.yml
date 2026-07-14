@@ -67,6 +67,8 @@ delete_confirm_title: "刪除連線"
 delete_confirm_message: "確定要刪除 %{name} 嗎？"
 delete_object_confirm_title: "刪除檔案"
 delete_object_confirm_message: "確定要刪除 %{name} 嗎？"
+delete_prefix_confirm_title: "刪除資料夾"
+delete_prefix_confirm_message: "確定要刪除資料夾 %{name} 及其所有內容嗎？"
 confirm: "確定"
 
 # Status bar

@@ -177,6 +177,8 @@ pub enum Message {
     CancelDelete,
     ConfirmDeleteObject(String),
     CancelDeleteObject,
+    ConfirmDeletePrefix(String),
+    CancelDeletePrefix,
     ToggleNewFolder,
     NewFolderInputChanged(String),
     CreateNewFolder,
@@ -200,6 +202,7 @@ pub struct App {
     download_dir: String,
     pending_delete: Option<String>,
     pending_delete_object: Option<String>,
+    pending_delete_prefix: Option<String>,
     new_folder_input: Option<String>,
     pub show_settings: bool,
     pub theme: Theme,
@@ -265,6 +268,7 @@ pub fn boot() -> (App, Task<Message>) {
         download_dir: dirs::download_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
         pending_delete: None,
         pending_delete_object: None,
+        pending_delete_prefix: None,
         new_folder_input: None,
         show_settings: false,
         theme: Theme::Dark,
@@ -566,7 +570,12 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             )
         }
         Message::DeletePrefix(prefix) => {
-            log::info!("Deleting prefix: {}", prefix);
+            log::info!("Prompting delete prefix confirmation: {}", prefix);
+            app.pending_delete_prefix = Some(prefix);
+            Task::none()
+        }
+        Message::ConfirmDeletePrefix(prefix) => {
+            log::info!("Confirming delete prefix: {}", prefix);
             let bucket = match &app.current_bucket {
                 Some(b) => b.clone(),
                 None => return Task::none(),
@@ -575,11 +584,16 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 Some(s) => s.clone(),
                 None => return Task::none(),
             };
+            app.pending_delete_prefix = None;
             app.is_loading = true;
             Task::perform(
                 async move { s3.delete_prefix(&bucket, &prefix) },
                 Message::DeleteResult,
             )
+        }
+        Message::CancelDeletePrefix => {
+            app.pending_delete_prefix = None;
+            Task::none()
         }
         Message::DeleteResult(result) => match result {
             Ok(()) => {
@@ -902,6 +916,45 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .width(Length::Fill)
                     .align_x(Alignment::End),
                 button(text(t!("cancel").to_string())).on_press(Message::ToggleNewFolder),
+            ]
+            .spacing(10),
+        ]
+        .spacing(16)
+        .padding(20);
+
+        let content = container(panel)
+            .width(360)
+            .style(move |_: &Theme| container::Style {
+                background: Some(iced::Background::Color(p.surface_raised)),
+                border: iced::Border::default().rounded(8),
+                ..Default::default()
+            });
+
+        let overlay = container(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(|_: &Theme| container::Style {
+                background: Some(iced::Background::Color(iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
+                ..Default::default()
+            })
+            .center_x(Length::Fill)
+            .center_y(Length::Fill);
+
+        stack_elements.push(iced::widget::opaque(overlay).into());
+    }
+
+    if let Some(ref prefix) = app.pending_delete_prefix {
+        let folder_name = prefix.trim_end_matches('/').rsplit_once('/').map(|(_, n)| n).unwrap_or(prefix.trim_end_matches('/'));
+        let p = custom_palette(&app.theme);
+        let panel = column![
+            text(t!("delete_prefix_confirm_title").to_string()).size(18),
+            rule::horizontal(1),
+            text(t!("delete_prefix_confirm_message", name = folder_name).to_string()).size(14),
+            row![
+                container(button(text(t!("confirm").to_string())).on_press(Message::ConfirmDeletePrefix(prefix.clone())))
+                    .width(Length::Fill)
+                    .align_x(Alignment::End),
+                button(text(t!("cancel").to_string())).on_press(Message::CancelDeletePrefix),
             ]
             .spacing(10),
         ]
