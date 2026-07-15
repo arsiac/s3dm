@@ -1,5 +1,9 @@
-use std::sync::Arc;
+use std::future::Future;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
+use aws_sdk_s3::config::retry::RetryConfig;
+use aws_sdk_s3::config::timeout::TimeoutConfig;
 use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
 use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::types::{Delete, ObjectIdentifier};
@@ -46,18 +50,75 @@ pub enum CoreError {
     NotFound(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct S3Manager {
-    client: aws_sdk_s3::Client,
     runtime: Arc<tokio::runtime::Runtime>,
+    inner: Arc<S3Inner>,
+}
+
+#[derive(Debug)]
+struct S3Inner {
+    client: Mutex<aws_sdk_s3::Client>,
+    config: aws_sdk_s3::config::Config,
+}
+
+// Manual Clone: config is Clone, client is Clone (Arc clone), runtime is Arc
+impl Clone for S3Manager {
+    fn clone(&self) -> Self {
+        Self {
+            runtime: self.runtime.clone(),
+            inner: self.inner.clone(),
+        }
+    }
 }
 
 impl S3Manager {
-    fn run<F, T>(&self, f: F) -> T
+    fn run<F, Fut, T>(&self, f: F) -> Result<T, CoreError>
     where
-        F: std::future::Future<Output = T>,
+        F: FnOnce(aws_sdk_s3::Client) -> Fut,
+        Fut: Future<Output = Result<T, CoreError>>,
     {
-        self.runtime.block_on(f)
+        let client = self.inner.client.lock().expect("lock poisoned").clone();
+        self.runtime.block_on(f(client))
+    }
+
+    fn run_with_retry<F, Fut, T>(&self, op_name: &'static str, f: F) -> Result<T, CoreError>
+    where
+        F: Fn(aws_sdk_s3::Client) -> Fut,
+        Fut: Future<Output = Result<T, CoreError>>,
+    {
+        let max_attempts = 3;
+        self.runtime.block_on(async {
+            let mut last_err = None;
+            for attempt in 1..=max_attempts {
+                let client = {
+                    let guard = self.inner.client.lock().expect("lock poisoned");
+                    guard.clone()
+                };
+                match f(client).await {
+                    Ok(result) => return Ok(result),
+                    Err(e) => {
+                        let is_dispatch = e.to_string().contains("dispatch failure");
+                        if is_dispatch && attempt < max_attempts {
+                            log::warn!(
+                                "{} failed on attempt {}/{}: dispatch failure, retrying...",
+                                op_name,
+                                attempt,
+                                max_attempts
+                            );
+                            last_err = Some(e);
+                            let new_client =
+                                aws_sdk_s3::Client::from_conf(self.inner.config.clone());
+                            *self.inner.client.lock().expect("lock poisoned") = new_client;
+                            tokio::time::sleep(Duration::from_millis(500 * attempt)).await;
+                        } else {
+                            return Err(e);
+                        }
+                    }
+                }
+            }
+            Err(last_err.unwrap())
+        })
     }
 
     pub fn new(
@@ -76,25 +137,41 @@ impl S3Manager {
         let runtime = Arc::new(tokio::runtime::Runtime::new().unwrap());
         let creds = Credentials::new(access_key_id, secret_access_key, None, None, "s3dm");
 
-        let client = runtime.block_on(async {
+        let (client, config) = runtime.block_on(async {
             let config = aws_sdk_s3::config::Config::builder()
                 .behavior_version(BehaviorVersion::latest())
                 .region(Region::new(region.to_string()))
                 .endpoint_url(endpoint)
                 .credentials_provider(creds)
                 .force_path_style(force_path_style)
+                .retry_config(RetryConfig::standard().with_max_attempts(3))
+                .timeout_config(
+                    TimeoutConfig::builder()
+                        .connect_timeout(Duration::from_secs(10))
+                        .operation_attempt_timeout(Duration::from_secs(30))
+                        .operation_timeout(Duration::from_secs(60))
+                        .read_timeout(Duration::from_secs(30))
+                        .build(),
+                )
                 .build();
-            aws_sdk_s3::Client::from_conf(config)
+            let client = aws_sdk_s3::Client::from_conf(config.clone());
+            (client, config)
         });
 
         log::info!("S3 client created successfully endpoint={}", endpoint);
-        Self { client, runtime }
+        Self {
+            runtime,
+            inner: Arc::new(S3Inner {
+                client: Mutex::new(client),
+                config,
+            }),
+        }
     }
 
     pub fn list_buckets(&self) -> Result<Vec<S3Bucket>, CoreError> {
         log::info!("Listing all buckets");
-        self.run(async {
-            let resp = self.client.list_buckets().send().await.map_err(|e| {
+        self.run_with_retry("list_buckets", |client| async move {
+            let resp = client.list_buckets().send().await.map_err(|e| {
                 log::error!("Failed to list buckets: {}", e);
                 CoreError::S3(e.to_string())
             })?;
@@ -132,9 +209,8 @@ impl S3Manager {
             delimiter,
             max_keys
         );
-        self.run(async {
-            let mut req = self
-                .client
+        self.run_with_retry("list_objects", |client| async move {
+            let mut req = client
                 .list_objects_v2()
                 .bucket(bucket)
                 .prefix(prefix)
@@ -205,8 +281,8 @@ impl S3Manager {
 
     pub fn delete_object(&self, bucket: &str, key: &str) -> Result<(), CoreError> {
         log::info!("Deleting object bucket={} key={}", bucket, key);
-        self.run(async {
-            self.client
+        self.run_with_retry("delete_object", |client| async move {
+            client
                 .delete_object()
                 .bucket(bucket)
                 .key(key)
@@ -232,13 +308,12 @@ impl S3Manager {
             bucket,
             prefix
         );
-        self.run(async {
+        self.run_with_retry("delete_prefix", |client| async move {
             let mut keys: Vec<String> = Vec::new();
             let mut token: Option<String> = None;
 
             loop {
-                let mut req = self
-                    .client
+                let mut req = client
                     .list_objects_v2()
                     .bucket(bucket)
                     .prefix(prefix)
@@ -278,7 +353,7 @@ impl S3Manager {
                     .build()
                     .map_err(|e| CoreError::S3(format!("build delete request failed: {}", e)))?;
 
-                self.client
+                client
                     .delete_objects()
                     .bucket(bucket)
                     .delete(delete)
@@ -294,9 +369,8 @@ impl S3Manager {
 
     pub fn get_object(&self, bucket: &str, key: &str) -> Result<Vec<u8>, CoreError> {
         log::info!("Downloading object bucket={} key={}", bucket, key);
-        self.run(async {
-            let resp = self
-                .client
+        self.run_with_retry("get_object", |client| async move {
+            let resp = client
                 .get_object()
                 .bucket(bucket)
                 .key(key)
@@ -345,8 +419,8 @@ impl S3Manager {
             key,
             data.len()
         );
-        self.run(async {
-            self.client
+        self.run(move |client| async move {
+            client
                 .put_object()
                 .bucket(bucket)
                 .key(key)
@@ -369,9 +443,8 @@ impl S3Manager {
 
     pub fn head_object(&self, bucket: &str, key: &str) -> Result<S3Object, CoreError> {
         log::debug!("Querying object metadata bucket={} key={}", bucket, key);
-        self.run(async {
-            let resp = self
-                .client
+        self.run_with_retry("head_object", |client| async move {
+            let resp = client
                 .head_object()
                 .bucket(bucket)
                 .key(key)
