@@ -90,6 +90,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 secret_access_key: String::new(),
                 force_path_style: true,
             });
+            app.connection_testing = false;
+            app.connection_test_result = None;
             Task::none()
         }
 
@@ -101,6 +103,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             } else {
                 log::error!("Edit failed: connection id={} not found", id);
             }
+            app.connection_testing = false;
+            app.connection_test_result = None;
             Task::none()
         }
 
@@ -172,6 +176,44 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                     );
                 }
             }
+            app.connection_testing = false;
+            app.connection_test_result = None;
+            Task::none()
+        }
+
+        // ── 测试连接配置 ──
+        Message::ConnectionFormTest => {
+            let form = match &app.connection_form {
+                Some(f) => f.clone(),
+                None => return Task::none(),
+            };
+            if form.endpoint.is_empty() {
+                app.connection_test_result = Some(Err(s3dm_core::CoreError::Connection(
+                    rust_i18n::t!("test_connection_empty_endpoint").to_string(),
+                )));
+                return Task::none();
+            }
+            log::info!("Testing connection form: endpoint={}", form.endpoint);
+            app.connection_testing = true;
+            app.connection_test_result = None;
+            Task::perform(
+                async move {
+                    s3dm_core::S3Manager::test_connection(
+                        &form.endpoint,
+                        &form.region,
+                        &form.access_key_id,
+                        &form.secret_access_key,
+                        form.force_path_style,
+                    )
+                },
+                Message::ConnectionTestResult,
+            )
+        }
+
+        // ── 连接测试结果回调 ──
+        Message::ConnectionTestResult(result) => {
+            app.connection_testing = false;
+            app.connection_test_result = Some(result);
             Task::none()
         }
 

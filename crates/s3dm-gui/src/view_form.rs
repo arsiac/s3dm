@@ -113,10 +113,38 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
                 value: b.to_string(),
             }),
         row![
+            button(text(t!("test_connection").to_string())).on_press(Message::ConnectionFormTest),
             button(text(t!("save").to_string())).on_press(Message::ConnectionFormSave),
             button(text(t!("cancel").to_string())).on_press(Message::ConnectionFormCancel),
         ]
         .spacing(10),
+        {
+            let pal = constants::custom_palette(&app.theme);
+            let msg = if app.connection_testing {
+                Some((t!("testing_connection").to_string(), pal.text_secondary))
+            } else if let Some(result) = &app.connection_test_result {
+                match result {
+                    Ok(()) => Some((
+                        t!("test_connection_success").to_string(),
+                        iced::Color::from_rgb(0.3, 0.7, 0.3),
+                    )),
+                    Err(e) => Some((
+                        t!("test_connection_failed", error = e.to_string()).to_string(),
+                        iced::Color::from_rgb(0.8, 0.3, 0.3),
+                    )),
+                }
+            } else {
+                None
+            };
+            let result_widget: Element<'_, Message> = match msg {
+                Some((text_str, color)) => text(text_str)
+                    .size(13)
+                    .style(move |_: &Theme| text::Style { color: Some(color) })
+                    .into(),
+                None => text("").size(13).into(),
+            };
+            result_widget
+        },
     ]
     .spacing(10)
     .padding(20);

@@ -27,6 +27,10 @@ pub enum Message {
     ConnectionFormSave,
     /// 取消连接表单编辑
     ConnectionFormCancel,
+    /// 测试当前连接表单配置
+    ConnectionFormTest,
+    /// 连接表单测试结果回调
+    ConnectionTestResult(Result<(), CoreError>),
 
     // ── S3 连接结果 ──
     /// 连接完成回调，携带 S3Manager 和桶列表

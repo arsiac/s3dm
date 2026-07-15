@@ -168,6 +168,37 @@ impl S3Manager {
         }
     }
 
+    /// 测试 S3 连接是否可用
+    ///
+    /// 创建临时客户端并调用 `list_buckets`，用于在不建立持久连接的情况下
+    /// 验证端点、凭据与网络连通性。成功返回 `Ok(())`，失败返回 `Err`。
+    pub fn test_connection(
+        endpoint: &str,
+        region: &str,
+        access_key_id: &str,
+        secret_access_key: &str,
+        force_path_style: bool,
+    ) -> Result<(), CoreError> {
+        log::info!("Testing S3 connection endpoint={}", endpoint);
+        let manager = S3Manager::new(
+            endpoint,
+            region,
+            access_key_id,
+            secret_access_key,
+            force_path_style,
+        );
+        match manager.list_buckets() {
+            Ok(_) => {
+                log::info!("Connection test succeeded");
+                Ok(())
+            }
+            Err(e) => {
+                log::error!("Connection test failed: {}", e);
+                Err(e)
+            }
+        }
+    }
+
     pub fn list_buckets(&self) -> Result<Vec<S3Bucket>, CoreError> {
         log::info!("Listing all buckets");
         self.run_with_retry("list_buckets", |client| async move {

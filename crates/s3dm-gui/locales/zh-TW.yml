@@ -21,6 +21,11 @@ secret_access_key: "秘密存取金鑰"
 force_path_style_label: "路徑風格 URL（建議用於 S3 相容儲存）"
 save: "儲存"
 cancel: "取消"
+test_connection: "測試連線"
+testing_connection: "連線測試中..."
+test_connection_success: "連線成功"
+test_connection_failed: "連線失敗: %{error}"
+test_connection_empty_endpoint: "請先填寫端點位址"
 
 # Buckets page
 back: "← 返回"

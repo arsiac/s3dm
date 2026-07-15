@@ -21,6 +21,11 @@ secret_access_key: "Secret Access Key"
 force_path_style_label: "Path-style URL (recommended for S3-compatible storage)"
 save: "Save"
 cancel: "Cancel"
+test_connection: "Test Connection"
+testing_connection: "Testing connection..."
+test_connection_success: "Connection successful"
+test_connection_failed: "Connection failed: %{error}"
+test_connection_empty_endpoint: "Please fill in the endpoint first"
 
 # Buckets page
 back: "← Back"

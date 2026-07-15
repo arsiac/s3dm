@@ -6,7 +6,7 @@
 
 use iced::{Task, Theme};
 use s3dm_config::ConfigStore;
-use s3dm_core::{S3Bucket, S3Manager, S3Object};
+use s3dm_core::{CoreError, S3Bucket, S3Manager, S3Object};
 
 use crate::connection::ConnectionForm;
 use crate::message::Message;
@@ -27,6 +27,10 @@ pub struct App {
     pub selected_connection_id: Option<String>,
     /// 正在编辑/新增的连接表单数据
     pub connection_form: Option<ConnectionForm>,
+    /// 是否正在测试连接
+    pub connection_testing: bool,
+    /// 连接表单测试结果（None 表示尚未测试）
+    pub connection_test_result: Option<Result<(), CoreError>>,
     /// 当前连接下的桶列表
     pub buckets: Vec<S3Bucket>,
     /// 当前选中的桶名称
@@ -118,6 +122,8 @@ pub fn boot() -> (App, Task<Message>) {
         expanded_connection: None,
         selected_connection_id: None,
         connection_form: None,
+        connection_testing: false,
+        connection_test_result: None,
         buckets: Vec::new(),
         current_bucket: None,
         current_prefix: String::new(),
