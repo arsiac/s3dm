@@ -30,6 +30,7 @@ test_connection_empty_endpoint: "请先填写端点地址"
 # Buckets page
 back: "← 返回"
 open: "打开"
+no_buckets: "暂无存储桶"
 
 # Objects page
 refresh: "刷新"

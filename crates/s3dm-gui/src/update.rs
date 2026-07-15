@@ -26,30 +26,25 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
 
         // ── 选择连接 → 发起 S3 连接 ──
         Message::ConnectionSelected(conn_id) => {
-            log::info!("Connection selected: id={}", conn_id);
             app.expanded_connection = Some(conn_id.clone());
-            if let Some(config) = app.config_store.get(&conn_id).cloned() {
-                app.is_loading = true;
-                let endpoint = config.endpoint;
-                let region = config.region;
-                let ak = config.access_key_id;
-                let sk = config.secret_access_key;
-                let fps = config.force_path_style;
-                Task::perform(
-                    async move {
-                        log::info!("Connecting to S3 endpoint={} region={}", endpoint, region);
-                        let manager = s3dm_core::S3Manager::new(&endpoint, &region, &ak, &sk, fps);
-                        let buckets = manager.list_buckets();
-                        (manager, buckets)
-                    },
-                    |(manager, buckets)| Message::Connected {
-                        connection_id: conn_id,
-                        manager,
-                        buckets,
-                    },
-                )
+            connect_to(app, conn_id)
+        }
+
+        // ── 返回当前连接的存储桶列表 ──
+        Message::BackToBuckets => {
+            log::info!("Back to bucket list");
+            app.current_bucket = None;
+            app.current_prefix.clear();
+            app.objects.clear();
+            app.common_prefixes.clear();
+            Task::none()
+        }
+
+        // ── 刷新当前连接的存储桶列表 ──
+        Message::RefreshBuckets => {
+            if let Some(conn_id) = app.selected_connection_id.clone() {
+                connect_to(app, conn_id)
             } else {
-                log::error!("Connection config not found: id={}", conn_id);
                 Task::none()
             }
         }
@@ -597,5 +592,38 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             rust_i18n::set_locale(&code);
             Task::none()
         }
+    }
+}
+
+/// 发起指定连接的 S3 连接并拉取桶列表
+///
+/// 设置 `is_loading` 后异步创建 `S3Manager` 并调用 `list_buckets`，
+/// 结果通过 `Message::Connected` 回调回写状态。
+fn connect_to(app: &mut App, conn_id: String) -> Task<Message> {
+    log::info!("Connection selected: id={}", conn_id);
+    app.is_loading = true;
+    if let Some(config) = app.config_store.get(&conn_id).cloned() {
+        let endpoint = config.endpoint;
+        let region = config.region;
+        let ak = config.access_key_id;
+        let sk = config.secret_access_key;
+        let fps = config.force_path_style;
+        Task::perform(
+            async move {
+                log::info!("Connecting to S3 endpoint={} region={}", endpoint, region);
+                let manager = s3dm_core::S3Manager::new(&endpoint, &region, &ak, &sk, fps);
+                let buckets = manager.list_buckets();
+                (manager, buckets)
+            },
+            |(manager, buckets)| Message::Connected {
+                connection_id: conn_id,
+                manager,
+                buckets,
+            },
+        )
+    } else {
+        log::error!("Connection config not found: id={}", conn_id);
+        app.is_loading = false;
+        Task::none()
     }
 }

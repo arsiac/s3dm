@@ -13,7 +13,8 @@
 //! | `app` | `App` 结构体（应用状态）、`boot()` 初始化 |
 //! | `update` | `update()` 状态机核心 |
 //! | `view` | `view()` 主视图编排、`view_right_content()` |
-//! | `view_left_panel` | 左侧面板（连接列表 + 桶列表） |
+//! | `view_left_panel` | 左侧面板（连接列表） |
+//! | `view_buckets` | 右侧存储桶列表视图 |
 //! | `view_objects` | 对象浏览器（文件/文件夹列表） |
 //! | `view_form` | 连接编辑表单 |
 //! | `view_dialogs` | 模态对话框（删除确认、新建文件夹） |
@@ -29,6 +30,7 @@ pub mod constants;
 pub mod message;
 pub mod update;
 pub mod view;
+pub mod view_buckets;
 pub mod view_dialogs;
 pub mod view_form;
 pub mod view_left_panel;

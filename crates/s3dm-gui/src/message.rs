@@ -41,6 +41,10 @@ pub enum Message {
     },
 
     // ── 桶/路径导航 ──
+    /// 返回当前连接的存储桶列表
+    BackToBuckets,
+    /// 刷新当前连接的存储桶列表
+    RefreshBuckets,
     /// 选中某个桶
     BucketSelected(String),
     /// 进入某个文件夹前缀

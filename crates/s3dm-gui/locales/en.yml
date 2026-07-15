@@ -30,6 +30,7 @@ test_connection_empty_endpoint: "Please fill in the endpoint first"
 # Buckets page
 back: "← Back"
 open: "Open"
+no_buckets: "No buckets"
 
 # Objects page
 refresh: "Refresh"

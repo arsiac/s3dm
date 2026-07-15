@@ -15,6 +15,7 @@ use rust_i18n::t;
 use crate::app::App;
 use crate::message::Message;
 
+use crate::view_buckets::view_buckets;
 use crate::view_dialogs;
 use crate::view_form::view_connection_form;
 use crate::view_left_panel::view_left_panel;
@@ -151,17 +152,17 @@ fn overlay_element<'a>(child: Element<'a, Message>) -> Element<'a, Message> {
 /// 渲染右侧内容区域
 ///
 /// - 已选中桶：显示对象浏览器
-/// - 未选中桶但已展开连接：提示选择桶
+/// - 已选中连接：显示该连接下的存储桶列表
 /// - 无连接：提示添加连接
 /// - 其他：提示选择连接
 fn view_right_content(app: &App) -> Element<'_, Message> {
     if app.current_bucket.is_some() {
         view_objects(app)
+    } else if app.selected_connection_id.is_some() {
+        view_buckets(app)
     } else {
         let p = crate::constants::custom_palette(&app.theme);
-        let hint = if app.expanded_connection.is_some() {
-            t!("select_bucket_hint")
-        } else if app.config_store.list().is_empty() {
+        let hint = if app.config_store.list().is_empty() {
             t!("no_connection")
         } else {
             t!("select_connection_hint")

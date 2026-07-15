@@ -70,9 +70,18 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(16.0))
     .height(Length::Fixed(16.0))
     .style(svg_style);
+    let back_svg = svg(SvgHandle::from_memory(
+        include_bytes!("../icons/arrow-left-16-filled.svg").to_vec(),
+    ))
+    .width(Length::Fixed(16.0))
+    .height(Length::Fixed(16.0))
+    .style(svg_style);
 
     // ── 面包屑导航栏 ──
     let breadcrumb = row![
+        button(back_svg)
+            .style(icon_btn_style)
+            .on_press(Message::BackToBuckets),
         row![
             svg(SvgHandle::from_memory(
                 include_bytes!("../icons/folder-16-filled.svg").to_vec()

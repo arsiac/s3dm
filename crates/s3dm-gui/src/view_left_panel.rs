@@ -114,10 +114,7 @@ pub fn view_left_panel(app: &App) -> Element<'_, Message> {
 
     // ── 遍历连接列表 ──
     for conn in connections.iter() {
-        let is_expanded = app.expanded_connection.as_ref() == Some(&conn.id);
         let is_connected = app.selected_connection_id.as_ref() == Some(&conn.id);
-
-        let icon = if is_expanded { "▼" } else { "▶" };
 
         // 连接行上的操作按钮（编辑、删除）
         let action_btn_style = move |_: &Theme, s: button::Status| -> button::Style {
@@ -160,7 +157,6 @@ pub fn view_left_panel(app: &App) -> Element<'_, Message> {
             .padding(Padding::from([2, 4]));
 
         let conn_row = row![
-            text(icon).size(10).color(p.text_secondary),
             text(&conn.name).size(13),
             container(edit_btn)
                 .width(Length::Fill)
@@ -175,14 +171,10 @@ pub fn view_left_panel(app: &App) -> Element<'_, Message> {
         .spacing(2)
         .align_y(Alignment::Center);
 
-        // 点击行为：折叠状态展开并连接；展开状态折叠
-        let msg = if is_expanded {
-            Message::ToggleConnectionExpand(conn.id.clone())
-        } else {
-            Message::ConnectionSelected(conn.id.clone())
-        };
+        // 点击行为：选中连接并在右侧加载桶列表
+        let msg = Message::ConnectionSelected(conn.id.clone());
 
-        let row_bg = if is_expanded {
+        let row_bg = if is_connected {
             Some(iced::Background::Color(iced::Color::from_rgba(
                 1.0, 1.0, 1.0, 0.04,
             )))
@@ -213,65 +205,7 @@ pub fn view_left_panel(app: &App) -> Element<'_, Message> {
                 .into(),
         );
 
-        // ── 展开时显示桶列表 ──
-        if is_expanded {
-            // 加载中提示
-            if app.buckets.is_empty() && app.is_loading {
-                items.push(
-                    container(text("  ...").size(12).color(p.text_secondary))
-                        .padding(Padding::from([4, 16]))
-                        .into(),
-                );
-            }
-            for bucket in &app.buckets {
-                let is_active = app.current_bucket.as_deref() == Some(&bucket.name);
-                let bucket_bg = if is_active {
-                    Some(iced::Background::Color(iced::Color::from_rgba(
-                        1.0, 1.0, 1.0, 0.08,
-                    )))
-                } else {
-                    None
-                };
-                items.push(
-                    button(
-                        row![
-                            svg(SvgHandle::from_memory(if is_active {
-                                include_bytes!("../icons/folder-open-16-filled.svg").to_vec()
-                            } else {
-                                include_bytes!("../icons/folder-16-filled.svg").to_vec()
-                            }))
-                            .width(Length::Fixed(14.0))
-                            .height(Length::Fixed(14.0))
-                            .style(svg_style),
-                            text(&bucket.name).size(12),
-                        ]
-                        .spacing(6)
-                        .align_y(Alignment::Center),
-                    )
-                    .on_press(Message::BucketSelected(bucket.name.clone()))
-                    .style(move |_: &Theme, s: button::Status| {
-                        let bg = match s {
-                            button::Status::Hovered | button::Status::Pressed => {
-                                Some(iced::Background::Color(iced::Color::from_rgba(
-                                    1.0, 1.0, 1.0, 0.08,
-                                )))
-                            }
-                            _ => bucket_bg,
-                        };
-                        button::Style {
-                            background: bg,
-                            text_color: palette.text,
-                            border: Border::default(),
-                            shadow: iced::Shadow::default(),
-                            ..Default::default()
-                        }
-                    })
-                    .padding(Padding::from([6, 16]))
-                    .width(Length::Fill)
-                    .into(),
-                );
-            }
-        }
+        // ── 桶列表已移至右侧内容区展示（view_buckets） ──
     }
 
     let mut list_elements: Vec<Element<Message>> = vec![header.into(), rule::horizontal(1).into()];
