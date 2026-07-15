@@ -56,6 +56,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             buckets,
         } => {
             app.is_loading = false;
+            app.connecting_name = None;
             match buckets {
                 Ok(list) => {
                     log::info!("Connected successfully, got {} buckets", list.len());
@@ -603,6 +604,7 @@ fn connect_to(app: &mut App, conn_id: String) -> Task<Message> {
     log::info!("Connection selected: id={}", conn_id);
     app.is_loading = true;
     if let Some(config) = app.config_store.get(&conn_id).cloned() {
+        app.connecting_name = Some(config.name.clone());
         let endpoint = config.endpoint;
         let region = config.region;
         let ak = config.access_key_id;
@@ -624,6 +626,7 @@ fn connect_to(app: &mut App, conn_id: String) -> Task<Message> {
     } else {
         log::error!("Connection config not found: id={}", conn_id);
         app.is_loading = false;
+        app.connecting_name = None;
         Task::none()
     }
 }

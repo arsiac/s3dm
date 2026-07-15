@@ -80,6 +80,7 @@ confirm: "確定"
 # Status bar
 status_ready: "就緒"
 status_connected: "已連線"
+status_connecting: "正在連線 %{name}..."
 status_objects: "個物件"
 status_buckets: "個儲存桶"
 

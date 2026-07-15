@@ -80,6 +80,7 @@ confirm: "确定"
 # Status bar
 status_ready: "就绪"
 status_connected: "已连接"
+status_connecting: "正在连接 %{name}..."
 status_objects: "个对象"
 status_buckets: "个存储桶"
 

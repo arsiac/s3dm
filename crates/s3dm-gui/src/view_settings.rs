@@ -122,7 +122,10 @@ pub fn view_settings(app: &App) -> Element<'_, Message> {
 pub fn view_status_bar(app: &App) -> Element<'_, Message> {
     let p = constants::custom_palette(&app.theme);
 
-    let status_text = if app.selected_connection_id.is_some() {
+    let status_text = if let Some(name) = &app.connecting_name {
+        // 正在连接：优先显示连接进度，避免用户以为软件卡住
+        t!("status_connecting", name = name.as_str()).to_string()
+    } else if app.selected_connection_id.is_some() {
         let conn_name = app
             .config_store
             .list()
@@ -153,8 +156,19 @@ pub fn view_status_bar(app: &App) -> Element<'_, Message> {
         t!("status_ready").to_string()
     };
 
-    row![text(status_text).size(11).color(p.text_secondary)]
+    let mut bar = row![text(status_text).size(11).color(p.text_secondary)]
+        .spacing(10)
         .padding(Padding::from([6, 16]))
-        .align_y(Alignment::Center)
-        .into()
+        .align_y(Alignment::Center);
+
+    // 加载中指示器：紧凑地显示在状态栏右侧，不占用额外空间
+    if app.is_loading {
+        bar = bar.push(
+            container(text(t!("loading").to_string()).size(11).color(p.text_secondary))
+                .width(Length::Fill)
+                .align_x(Alignment::End),
+        );
+    }
+
+    bar.into()
 }

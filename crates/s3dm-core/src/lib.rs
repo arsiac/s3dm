@@ -148,9 +148,9 @@ impl S3Manager {
                 .timeout_config(
                     TimeoutConfig::builder()
                         .connect_timeout(Duration::from_secs(10))
-                        .operation_attempt_timeout(Duration::from_secs(30))
-                        .operation_timeout(Duration::from_secs(60))
-                        .read_timeout(Duration::from_secs(30))
+                        .operation_attempt_timeout(Duration::from_secs(10))
+                        .operation_timeout(Duration::from_secs(10))
+                        .read_timeout(Duration::from_secs(10))
                         .build(),
                 )
                 .build();

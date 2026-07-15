@@ -47,6 +47,8 @@ pub struct App {
     pub continuation_token: Option<String>,
     /// 是否正在加载中
     pub is_loading: bool,
+    /// 正在连接中的连接名称（用于状态栏提示，None 表示未在连接）
+    pub connecting_name: Option<String>,
     /// 文件下载目录路径
     pub download_dir: String,
     /// 待删除确认的连接 ID
@@ -132,6 +134,7 @@ pub fn boot() -> (App, Task<Message>) {
         is_truncated: false,
         continuation_token: None,
         is_loading: false,
+        connecting_name: None,
         download_dir: dirs::download_dir()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default(),

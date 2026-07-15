@@ -75,16 +75,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .into(),
     );
 
-    // ── 加载中遮罩 ──
-    if app.is_loading {
-        let loading = container(text(t!("loading").to_string()).size(24))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill);
-        elements.push(loading.into());
-    }
-
     let content = container(column(elements).spacing(0))
         .width(Length::Fill)
         .height(Length::Fill);

@@ -80,6 +80,7 @@ confirm: "Confirm"
 # Status bar
 status_ready: "Ready"
 status_connected: "Connected"
+status_connecting: "Connecting to %{name}..."
 status_objects: "objects"
 status_buckets: "buckets"
 
