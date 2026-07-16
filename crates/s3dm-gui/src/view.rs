@@ -7,8 +7,11 @@
 //! - 加载中遮罩
 
 use iced::{
-    Alignment, Element, Length,
-    widget::{Theme, button, column, container, row, rule, text},
+    Alignment, Border, Element, Length,
+    widget::{
+        Theme, button, column, container, row, rule, space, svg,
+        svg::Handle as SvgHandle, text,
+    },
 };
 use rust_i18n::t;
 
@@ -33,15 +36,49 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     // ── 错误提示栏 ──
     if let Some(err) = &app.error_message {
+        let hover_bg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.15);
+        let icon_btn_style = move |_: &Theme, s: button::Status| -> button::Style {
+            let (bg, border) = match s {
+                button::Status::Hovered | button::Status::Pressed => (
+                    Some(iced::Background::Color(hover_bg)),
+                    Border {
+                        color: hover_bg,
+                        width: 1.0,
+                        radius: 4.0.into(),
+                    },
+                ),
+                _ => (None, Border::default().width(0)),
+            };
+            button::Style {
+                background: bg,
+                border,
+                text_color: iced::Color::WHITE,
+                shadow: iced::Shadow::default(),
+                ..Default::default()
+            }
+        };
+
+        let dismiss = svg(SvgHandle::from_memory(
+            include_bytes!("../icons/dismiss-16-filled.svg").to_vec(),
+        ))
+        .width(Length::Fixed(16.0))
+        .height(Length::Fixed(16.0))
+        .style(|_: &Theme, _: svg::Status| svg::Style {
+            color: Some(iced::Color::WHITE),
+        });
+
         let error_bar = container(
             row![
-                text(t!("error", message = err.as_str()).to_string()).color(iced::Color::WHITE),
-                button("×").on_press(Message::ClearError),
+                text(t!("error", message = err.as_str()).to_string())
+                    .size(13)
+                    .color(iced::Color::WHITE),
+                space::horizontal(),
+                button(dismiss).style(icon_btn_style).on_press(Message::ClearError),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
         )
-        .padding(10)
+        .padding([6, 10])
         .style(|_: &Theme| container::Style {
             background: Some(iced::Background::Color(iced::Color::from_rgb(
                 0.8, 0.2, 0.2,
