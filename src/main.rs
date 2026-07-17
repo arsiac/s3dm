@@ -19,6 +19,10 @@ fn main() -> iced::Result {
         .theme(|app: &s3dm_gui::App| app.theme.clone())
         .window(iced::window::Settings {
             icon: window_icon,
+            platform_specific: iced::window::settings::PlatformSpecific {
+                application_id: "s3dm".into(),
+                ..Default::default()
+            },
             ..Default::default()
         })
         .centered()

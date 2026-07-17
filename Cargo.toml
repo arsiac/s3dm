@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/s3dm-config", "crates/s3dm-core", "crates/s3dm-gui"]
 
 [workspace.package]
-version = "0.2.0-dev"
+version = "0.2.0"
 edition = "2024"
 
 [workspace.dependencies]
@@ -54,10 +54,26 @@ with upload/download support."""
 section = "utils"
 priority = "optional"
 assets = [
-    ["target/release/s3dm", "usr/bin/", "755"],
-    ["packaging/s3dm.desktop", "usr/share/applications/", "644"],
-    ["crates/s3dm-gui/icons/app/icon-256.png", "usr/share/icons/hicolor/256x256/apps/s3dm.png", "644"],
-    ["crates/s3dm-gui/icons/app/icon-512.png", "usr/share/icons/hicolor/512x512/apps/s3dm.png", "644"],
+    [
+        "target/release/s3dm",
+        "usr/bin/",
+        "755",
+    ],
+    [
+        "packaging/s3dm.desktop",
+        "usr/share/applications/",
+        "644",
+    ],
+    [
+        "crates/s3dm-gui/icons/app/icon-256.png",
+        "usr/share/icons/hicolor/256x256/apps/s3dm.png",
+        "644",
+    ],
+    [
+        "crates/s3dm-gui/icons/app/icon-512.png",
+        "usr/share/icons/hicolor/512x512/apps/s3dm.png",
+        "644",
+    ],
 ]
 
 # ---------------------------------------------------------------------------

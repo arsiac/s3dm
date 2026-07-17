@@ -5,6 +5,7 @@ GenericName=S3 Client
 Comment=Manage S3 buckets and objects
 Exec=s3dm
 Icon=s3dm
+StartupWMClass=s3dm
 Terminal=false
 Categories=Utility;Network;FileTransfer;
 Keywords=S3;AWS;Storage;Cloud;
