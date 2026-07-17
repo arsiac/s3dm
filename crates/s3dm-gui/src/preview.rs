@@ -32,6 +32,8 @@ pub enum PreviewContent {
     Code { token: String, content: String },
     /// 图片字节
     Image(Vec<u8>),
+    /// SVG 矢量字节
+    Svg(Vec<u8>),
     /// 文件过大，无法预览
     TooLarge,
     /// 类型不支持预览
@@ -44,6 +46,8 @@ pub enum PreviewKind {
     Text,
     Code,
     Image,
+    /// SVG 矢量图（使用 svg 部件渲染，而非位图 image 部件）
+    Svg,
     /// 文件过大，仍提供预览入口，打开后提示下载
     TooLarge,
     Unsupported,
@@ -67,9 +71,10 @@ pub fn classify(key: &str, size: i64) -> PreviewKind {
 
     let base = match ext {
         "txt" | "log" => PreviewKind::Text,
-        "png" | "jpg" | "jpeg" | "gif" | "svg" | "webp" | "bmp" | "ico" | "tiff" | "heic" => {
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico" | "tiff" | "heic" => {
             PreviewKind::Image
         }
+        "svg" => PreviewKind::Svg,
         "json" | "yaml" | "yml" | "toml" | "py" | "rs" | "c" | "h" | "hpp" | "cpp" | "cc"
         | "java" | "js" | "ts" | "tsx" | "jsx" | "go" | "rb" | "php" | "sh" | "bash" | "md"
         | "html" | "css" | "xml" | "csv" | "ini" | "cfg" | "conf" => PreviewKind::Code,
@@ -78,11 +83,11 @@ pub fn classify(key: &str, size: i64) -> PreviewKind {
         _ => PreviewKind::Text,
     };
 
-    // 只有本可预览的类型（文本/代码/图片）超阈值才降级为 TooLarge；
+    // 只有本可预览的类型（文本/代码/图片/SVG）超阈值才降级为 TooLarge；
     // 明确不支持的类型（压缩包/音视频）无论大小都不显示预览按钮。
     if matches!(
         base,
-        PreviewKind::Text | PreviewKind::Code | PreviewKind::Image
+        PreviewKind::Text | PreviewKind::Code | PreviewKind::Image | PreviewKind::Svg
     ) && size as u64 > MAX_PREVIEW_BYTES
     {
         PreviewKind::TooLarge
@@ -230,6 +235,19 @@ fn preview_body<'a>(app: &'a App, content: &'a PreviewContent) -> Element<'a, Me
             .center_y(Length::Fill),
         )
         .into(),
+        PreviewContent::Svg(bytes) => scrollable(
+            container(
+                svg(SvgHandle::from_memory(bytes.clone()))
+                    .content_fit(iced::ContentFit::Contain)
+                    .width(Length::Fill)
+                    .height(Length::Fill),
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill),
+        )
+        .into(),
         PreviewContent::TooLarge => container(
             text(t!("preview_too_large").to_string())
                 .size(14)
@@ -366,6 +384,7 @@ pub fn view_loading<'a>(app: &'a App) -> Element<'a, Message> {
 pub fn build_preview(key: &str, size: i64, bytes: Vec<u8>) -> PreviewContent {
     match classify(key, size) {
         PreviewKind::Image => PreviewContent::Image(bytes),
+        PreviewKind::Svg => PreviewContent::Svg(bytes),
         PreviewKind::Code => PreviewContent::Code {
             token: lang_token(key),
             content: String::from_utf8_lossy(&bytes).to_string(),
