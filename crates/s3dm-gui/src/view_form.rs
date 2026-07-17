@@ -138,7 +138,11 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
                         iced::Color::from_rgb(0.3, 0.7, 0.3),
                     )),
                     Err(e) => Some((
-                        t!("test_connection_failed", error = e.to_string()).to_string(),
+                        t!(
+                            "test_connection_failed",
+                            error = crate::update::core_error_message(e)
+                        )
+                        .to_string(),
                         iced::Color::from_rgb(0.8, 0.3, 0.3),
                     )),
                 }

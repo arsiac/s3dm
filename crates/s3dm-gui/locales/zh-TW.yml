@@ -68,6 +68,20 @@ select_file_path: "請選擇檔案路徑"
 set_download_path: "請設定下載儲存路徑"
 read_file_failed: "讀取檔案失敗: %{error}"
 
+# Core error kinds (prefix for technical error details)
+error_s3: "S3 錯誤"
+error_connection: "連線錯誤"
+error_not_found: "找不到"
+error_io: "IO 錯誤"
+error_json: "JSON 錯誤"
+
+# Validation
+validation_required: "%{field}不能為空"
+field_name: "名稱"
+field_endpoint: "Endpoint"
+field_access_key_id: "Access Key ID"
+field_secret_access_key: "Secret Access Key"
+
 # Dialog
 new_folder_title: "新增資料夾"
 new_folder_placeholder: "資料夾名稱"

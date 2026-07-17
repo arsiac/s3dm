@@ -46,22 +46,22 @@ impl ConnectionConfig {
     pub fn validate(&self) -> Result<(), ConfigError> {
         if self.name.trim().is_empty() {
             log::warn!("Validation failed: name is empty id={}", self.id);
-            return Err(ConfigError::Validation("名称不能为空".into()));
+            return Err(ConfigError::Validation("name".into()));
         }
         if self.endpoint.trim().is_empty() {
             log::warn!("Validation failed: endpoint is empty id={}", self.id);
-            return Err(ConfigError::Validation("Endpoint 不能为空".into()));
+            return Err(ConfigError::Validation("endpoint".into()));
         }
         if self.access_key_id.trim().is_empty() {
             log::warn!("Validation failed: access key id is empty id={}", self.id);
-            return Err(ConfigError::Validation("Access Key ID 不能为空".into()));
+            return Err(ConfigError::Validation("access_key_id".into()));
         }
         if self.secret_access_key.trim().is_empty() {
             log::warn!(
                 "Validation failed: secret access key is empty id={}",
                 self.id
             );
-            return Err(ConfigError::Validation("Secret Access Key 不能为空".into()));
+            return Err(ConfigError::Validation("secret_access_key".into()));
         }
         log::debug!("Validation passed id={}", self.id);
         Ok(())
@@ -70,11 +70,11 @@ impl ConnectionConfig {
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
-    #[error("IO 错误: {0}")]
+    #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("JSON 序列化错误: {0}")]
+    #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
-    #[error("验证错误: {0}")]
+    #[error("Validation error: {0}")]
     Validation(String),
 }
 

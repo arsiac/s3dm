@@ -68,6 +68,20 @@ select_file_path: "Please select a file path"
 set_download_path: "Please set the download save path"
 read_file_failed: "Failed to read file: %{error}"
 
+# Core error kinds (prefix for technical error details)
+error_s3: "S3 error"
+error_connection: "Connection error"
+error_not_found: "Not found"
+error_io: "IO error"
+error_json: "JSON error"
+
+# Validation
+validation_required: "%{field} is required"
+field_name: "Name"
+field_endpoint: "Endpoint"
+field_access_key_id: "Access Key ID"
+field_secret_access_key: "Secret Access Key"
+
 # Dialog
 new_folder_title: "New Folder"
 new_folder_placeholder: "Folder name"

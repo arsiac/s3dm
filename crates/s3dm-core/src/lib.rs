@@ -43,13 +43,13 @@ pub struct ObjectListResult {
 
 #[derive(Debug, Clone, Error)]
 pub enum CoreError {
-    #[error("S3 错误: {0}")]
+    #[error("S3 error: {0}")]
     S3(String),
-    #[error("连接失败: {0}")]
+    #[error("Connection error: {0}")]
     Connection(String),
-    #[error("未找到: {0}")]
+    #[error("Not found: {0}")]
     NotFound(String),
-    #[error("IO 错误: {0}")]
+    #[error("IO error: {0}")]
     Io(String),
 }
 
@@ -421,17 +421,17 @@ impl S3Manager {
                         CoreError::S3(e.to_string())
                     })?;
 
-                let mut file = tokio::fs::File::create(&dest)
-                    .await
-                    .map_err(|e| CoreError::Io(format!("创建文件失败 {:?}: {}", dest, e)))?;
+                let mut file = tokio::fs::File::create(&dest).await.map_err(|e| {
+                    CoreError::Io(format!("failed to create file {:?}: {}", dest, e))
+                })?;
 
                 let mut reader = resp.body.into_async_read();
-                let written = tokio::io::copy(&mut reader, &mut file)
-                    .await
-                    .map_err(|e| CoreError::Io(format!("写入文件失败 {:?}: {}", dest, e)))?;
-                file.flush()
-                    .await
-                    .map_err(|e| CoreError::Io(format!("刷新文件失败 {:?}: {}", dest, e)))?;
+                let written = tokio::io::copy(&mut reader, &mut file).await.map_err(|e| {
+                    CoreError::Io(format!("failed to write file {:?}: {}", dest, e))
+                })?;
+                file.flush().await.map_err(|e| {
+                    CoreError::Io(format!("failed to flush file {:?}: {}", dest, e))
+                })?;
 
                 log::info!(
                     "Object downloaded successfully bucket={} key={} size={}",
@@ -491,9 +491,9 @@ impl S3Manager {
 
                 let total = resp.content_length().map(|v| v as u64);
 
-                let mut file = tokio::fs::File::create(&dest)
-                    .await
-                    .map_err(|e| CoreError::Io(format!("创建文件失败 {:?}: {}", dest, e)))?;
+                let mut file = tokio::fs::File::create(&dest).await.map_err(|e| {
+                    CoreError::Io(format!("failed to create file {:?}: {}", dest, e))
+                })?;
 
                 let mut reader = resp.body.into_async_read();
                 let mut buf = vec![0u8; 64 * 1024];
@@ -503,19 +503,19 @@ impl S3Manager {
                 loop {
                     let n = tokio::io::AsyncReadExt::read(&mut reader, &mut buf)
                         .await
-                        .map_err(|e| CoreError::Io(format!("读取响应失败: {}", e)))?;
+                        .map_err(|e| CoreError::Io(format!("failed to read response: {}", e)))?;
                     if n == 0 {
                         break;
                     }
-                    file.write_all(&buf[..n])
-                        .await
-                        .map_err(|e| CoreError::Io(format!("写入文件失败 {:?}: {}", dest, e)))?;
+                    file.write_all(&buf[..n]).await.map_err(|e| {
+                        CoreError::Io(format!("failed to write file {:?}: {}", dest, e))
+                    })?;
                     written += n as u64;
                     on_progress(written, total);
                 }
-                file.flush()
-                    .await
-                    .map_err(|e| CoreError::Io(format!("刷新文件失败 {:?}: {}", dest, e)))?;
+                file.flush().await.map_err(|e| {
+                    CoreError::Io(format!("failed to flush file {:?}: {}", dest, e))
+                })?;
 
                 log::info!(
                     "Object downloaded successfully bucket={} key={} size={}",
@@ -558,7 +558,7 @@ impl S3Manager {
                     .body
                     .collect()
                     .await
-                    .map_err(|e| CoreError::Io(format!("读取响应失败: {}", e)))?
+                    .map_err(|e| CoreError::Io(format!("failed to read response: {}", e)))?
                     .into_bytes()
                     .to_vec();
                 log::info!(
@@ -620,7 +620,7 @@ impl S3Manager {
             async move {
                 let stream = ByteStream::from_path(&src)
                     .await
-                    .map_err(|e| CoreError::Io(format!("打开文件失败 {:?}: {}", src, e)))?;
+                    .map_err(|e| CoreError::Io(format!("failed to open file {:?}: {}", src, e)))?;
 
                 client
                     .put_object()

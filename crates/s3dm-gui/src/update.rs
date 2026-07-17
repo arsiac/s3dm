@@ -10,6 +10,41 @@ use crate::app::App;
 use crate::connection::ConnectionForm;
 use crate::constants::AVAILABLE_THEMES;
 use crate::message::Message;
+use rust_i18n::t;
+use s3dm_config::ConfigError;
+use s3dm_core::CoreError;
+
+/// 将 `CoreError` 转换为已本地化的错误消息。
+///
+/// 错误类型前缀通过 `t!()` 翻译，底层技术性错误原文作为细节保留
+/// （通常来自 AWS SDK / 标准库，本身已是英文）。
+pub fn core_error_message(e: &CoreError) -> String {
+    let (kind, detail) = match e {
+        CoreError::S3(d) => (t!("error_s3"), d.as_str()),
+        CoreError::Connection(d) => (t!("error_connection"), d.as_str()),
+        CoreError::NotFound(d) => (t!("error_not_found"), d.as_str()),
+        CoreError::Io(d) => (t!("error_io"), d.as_str()),
+    };
+    format!("{}: {}", kind, detail)
+}
+
+/// 将 `ConfigError` 转换为已本地化的错误消息。
+pub fn config_error_message(e: &ConfigError) -> String {
+    match e {
+        ConfigError::Io(d) => format!("{}: {}", t!("error_io"), d),
+        ConfigError::Json(d) => format!("{}: {}", t!("error_json"), d),
+        ConfigError::Validation(field) => {
+            let field_label = match field.as_str() {
+                "name" => t!("field_name").to_string(),
+                "endpoint" => t!("field_endpoint").to_string(),
+                "access_key_id" => t!("field_access_key_id").to_string(),
+                "secret_access_key" => t!("field_secret_access_key").to_string(),
+                other => other.to_string(),
+            };
+            t!("validation_required", field = field_label).to_string()
+        }
+    }
+}
 
 /// 清理文件名，移除/替换对文件系统不安全的字符。
 ///
@@ -115,8 +150,10 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 Err(e) => {
                     log::error!("Connection failed: {}", e);
                     app.expanded_connection = None;
-                    app.error_message =
-                        Some(rust_i18n::t!("connection_failed", error = e.to_string()).to_string());
+                    app.error_message = Some(
+                        rust_i18n::t!("connection_failed", error = core_error_message(&e))
+                            .to_string(),
+                    );
                 }
             }
             Task::none()
@@ -165,7 +202,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             if let Err(e) = app.config_store.delete(&id) {
                 log::error!("Delete connection failed: {}", e);
                 app.error_message = Some(
-                    rust_i18n::t!("delete_connection_failed", error = e.to_string()).to_string(),
+                    rust_i18n::t!("delete_connection_failed", error = config_error_message(&e))
+                        .to_string(),
                 );
             }
             app.pending_delete = None;
@@ -216,7 +254,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 if let Err(e) = result {
                     log::error!("Save connection failed: {}", e);
                     app.error_message = Some(
-                        rust_i18n::t!("save_connection_failed", error = e.to_string()).to_string(),
+                        rust_i18n::t!("save_connection_failed", error = config_error_message(&e))
+                            .to_string(),
                     );
                 }
             }
@@ -364,7 +403,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 Err(e) => {
                     log::error!("Failed to load objects: {}", e);
                     app.error_message = Some(
-                        rust_i18n::t!("load_objects_failed", error = e.to_string()).to_string(),
+                        rust_i18n::t!("load_objects_failed", error = core_error_message(&e))
+                            .to_string(),
                     );
                 }
             }
@@ -425,8 +465,9 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                     log::error!("Failed to load preview for {}: {}", key, e);
                     app.preview_key = None;
                     app.preview = None;
-                    app.error_message =
-                        Some(rust_i18n::t!("preview_failed", error = e.to_string()).to_string());
+                    app.error_message = Some(
+                        rust_i18n::t!("preview_failed", error = core_error_message(&e)).to_string(),
+                    );
                 }
             }
             Task::none()
@@ -554,8 +595,9 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             }
             Err(e) => {
                 log::error!("Failed to delete object: {}", e);
-                app.error_message =
-                    Some(rust_i18n::t!("delete_failed", error = e.to_string()).to_string());
+                app.error_message = Some(
+                    rust_i18n::t!("delete_failed", error = core_error_message(&e)).to_string(),
+                );
                 Task::none()
             }
         },
@@ -615,8 +657,9 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 }
                 Err(e) => {
                     log::error!("Upload failed: {}", e);
-                    app.error_message =
-                        Some(rust_i18n::t!("upload_failed", error = e.to_string()).to_string());
+                    app.error_message = Some(
+                        rust_i18n::t!("upload_failed", error = core_error_message(&e)).to_string(),
+                    );
                 }
             }
             Task::none()
@@ -750,8 +793,10 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 }
                 Err(e) => {
                     log::error!("Failed to download object: {}", e);
-                    app.error_message =
-                        Some(rust_i18n::t!("download_failed", error = e.to_string()).to_string());
+                    app.error_message = Some(
+                        rust_i18n::t!("download_failed", error = core_error_message(&e))
+                            .to_string(),
+                    );
                     Task::none()
                 }
             }

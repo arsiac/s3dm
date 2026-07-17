@@ -68,6 +68,20 @@ select_file_path: "请选择文件路径"
 set_download_path: "请设置下载保存路径"
 read_file_failed: "读取文件失败: %{error}"
 
+# Core error kinds (prefix for technical error details)
+error_s3: "S3 错误"
+error_connection: "连接错误"
+error_not_found: "未找到"
+error_io: "IO 错误"
+error_json: "JSON 错误"
+
+# Validation
+validation_required: "%{field}不能为空"
+field_name: "名称"
+field_endpoint: "Endpoint"
+field_access_key_id: "Access Key ID"
+field_secret_access_key: "Secret Access Key"
+
 # Dialog
 new_folder_title: "新建文件夹"
 new_folder_placeholder: "文件夹名称"
