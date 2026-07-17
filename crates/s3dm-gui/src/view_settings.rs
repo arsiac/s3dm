@@ -188,19 +188,17 @@ pub fn view_status_bar(app: &App) -> Element<'_, Message> {
                 .into()
             }
             // 总大小未知：不确定态文字，仅显示已下载字节数
-            (Some(name), Some((downloaded, None))) => {
-                text(
-                    t!(
-                        "downloading_unknown",
-                        name = name.as_str(),
-                        size = constants::format_size(*downloaded as i64)
-                    )
-                    .to_string(),
+            (Some(name), Some((downloaded, None))) => text(
+                t!(
+                    "downloading_unknown",
+                    name = name.as_str(),
+                    size = constants::format_size(*downloaded as i64)
                 )
-                .size(11)
-                .color(p.text_secondary)
-                .into()
-            }
+                .to_string(),
+            )
+            .size(11)
+            .color(p.text_secondary)
+            .into(),
             // 下载中但尚无进度数据：显示文件名
             (Some(name), _) => text(t!("downloading_status", name = name.as_str()).to_string())
                 .size(11)

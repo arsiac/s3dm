@@ -77,10 +77,7 @@ pub enum Message {
         data: Result<u64, CoreError>,
     },
     /// 下载进度更新（已下载字节数，总大小 None 表示未知）
-    DownloadProgress {
-        downloaded: u64,
-        total: Option<u64>,
-    },
+    DownloadProgress { downloaded: u64, total: Option<u64> },
     /// 上传操作结果
     UploadResult(Result<(), CoreError>),
 

@@ -1,6 +1,13 @@
 fn main() -> iced::Result {
-    let project_level = if cfg!(debug_assertions) { "debug" } else { "info" };
-    let filter = format!("warn,s3dm={},s3dm_config={},s3dm_core={},s3dm_gui={}", project_level, project_level, project_level, project_level);
+    let project_level = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "info"
+    };
+    let filter = format!(
+        "warn,s3dm={},s3dm_config={},s3dm_core={},s3dm_gui={}",
+        project_level, project_level, project_level, project_level
+    );
 
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(&filter)).init();
 

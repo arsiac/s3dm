@@ -587,7 +587,10 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
 
             // 下载事件：进度更新 / 最终完成
             enum DlEvent {
-                Progress { downloaded: u64, total: Option<u64> },
+                Progress {
+                    downloaded: u64,
+                    total: Option<u64>,
+                },
                 Done {
                     key: String,
                     save_path: String,
@@ -595,32 +598,35 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 },
             }
 
-            let stream = iced::stream::channel(64, move |mut sender: iced::futures::channel::mpsc::Sender<DlEvent>| async move {
-                // 进度回调：同步 try_send，通道满时丢弃过密的中间更新
-                let progress_sender = sender.clone();
-                let on_progress = move |downloaded: u64, total: Option<u64>| {
-                    let mut s = progress_sender.clone();
-                    let _ = s.try_send(DlEvent::Progress { downloaded, total });
-                };
+            let stream = iced::stream::channel(
+                64,
+                move |mut sender: iced::futures::channel::mpsc::Sender<DlEvent>| async move {
+                    // 进度回调：同步 try_send，通道满时丢弃过密的中间更新
+                    let progress_sender = sender.clone();
+                    let on_progress = move |downloaded: u64, total: Option<u64>| {
+                        let mut s = progress_sender.clone();
+                        let _ = s.try_send(DlEvent::Progress { downloaded, total });
+                    };
 
-                let data = s3
-                    .get_object_to_file_with_progress(
-                        &bucket,
-                        &key,
-                        std::path::Path::new(&save_path),
-                        on_progress,
-                    )
-                    .await;
+                    let data = s3
+                        .get_object_to_file_with_progress(
+                            &bucket,
+                            &key,
+                            std::path::Path::new(&save_path),
+                            on_progress,
+                        )
+                        .await;
 
-                use iced::futures::SinkExt;
-                let _ = sender
-                    .send(DlEvent::Done {
-                        key: key_c,
-                        save_path,
-                        data,
-                    })
-                    .await;
-            });
+                    use iced::futures::SinkExt;
+                    let _ = sender
+                        .send(DlEvent::Done {
+                            key: key_c,
+                            save_path,
+                            data,
+                        })
+                        .await;
+                },
+            );
 
             Task::run(stream, |event| match event {
                 DlEvent::Progress { downloaded, total } => {
