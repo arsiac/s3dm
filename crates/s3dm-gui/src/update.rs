@@ -26,6 +26,10 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
 
         // ── 选择连接 → 发起 S3 连接 ──
         Message::ConnectionSelected(conn_id) => {
+            if app.selected_connection_id.as_ref() == Some(&conn_id) {
+                app.expanded_connection = Some(conn_id.clone());
+                return Task::none();
+            }
             app.expanded_connection = Some(conn_id.clone());
             connect_to(app, conn_id)
         }
@@ -603,6 +607,11 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
 fn connect_to(app: &mut App, conn_id: String) -> Task<Message> {
     log::info!("Connection selected: id={}", conn_id);
     app.is_loading = true;
+    app.current_bucket = None;
+    app.current_prefix.clear();
+    app.objects.clear();
+    app.common_prefixes.clear();
+    app.continuation_token = None;
     if let Some(config) = app.config_store.get(&conn_id).cloned() {
         app.connecting_name = Some(config.name.clone());
         let endpoint = config.endpoint;
