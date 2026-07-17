@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -8,6 +9,7 @@ use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::types::{Delete, ObjectIdentifier};
 use chrono::{DateTime, TimeZone, Utc};
 use thiserror::Error;
+use tokio::io::AsyncWriteExt;
 
 fn to_chrono(d: &aws_smithy_types::DateTime) -> Option<DateTime<Utc>> {
     let secs_f64 = d.as_secs_f64();
@@ -47,6 +49,8 @@ pub enum CoreError {
     Connection(String),
     #[error("未找到: {0}")]
     NotFound(String),
+    #[error("IO 错误: {0}")]
+    Io(String),
 }
 
 #[derive(Debug)]
@@ -70,7 +74,11 @@ impl Clone for S3Manager {
 }
 
 impl S3Manager {
-    async fn run_with_retry<F, Fut, T>(&self, op_name: &'static str, mut f: F) -> Result<T, CoreError>
+    async fn run_with_retry<F, Fut, T>(
+        &self,
+        op_name: &'static str,
+        mut f: F,
+    ) -> Result<T, CoreError>
     where
         F: FnMut(aws_sdk_s3::Client) -> Fut,
         Fut: Future<Output = Result<T, CoreError>>,
@@ -91,8 +99,7 @@ impl S3Manager {
                             max_attempts
                         );
                         last_err = Some(e);
-                        let new_client =
-                            aws_sdk_s3::Client::from_conf(self.inner.config.clone());
+                        let new_client = aws_sdk_s3::Client::from_conf(self.inner.config.clone());
                         *self.inner.client.lock().expect("lock poisoned") = new_client;
                         tokio::time::sleep(Duration::from_millis(500 * attempt)).await;
                     } else {
@@ -380,67 +387,118 @@ impl S3Manager {
         .await
     }
 
-    pub async fn get_object(&self, bucket: &str, key: &str) -> Result<Vec<u8>, CoreError> {
-        log::info!("Downloading object bucket={} key={}", bucket, key);
-        self.run_with_retry("get_object", move |client| async move {
-            let resp = client
-                .get_object()
-                .bucket(bucket)
-                .key(key)
-                .send()
-                .await
-                .map_err(|e| {
-                    log::error!(
-                        "Failed to download object bucket={} key={}: {}",
-                        bucket,
-                        key,
-                        e
-                    );
-                    CoreError::S3(e.to_string())
-                })?;
+    /// 下载对象并流式写入本地文件，避免将整个对象载入内存。
+    pub async fn get_object_to_file(
+        &self,
+        bucket: &str,
+        key: &str,
+        dest: &Path,
+    ) -> Result<u64, CoreError> {
+        log::info!(
+            "Downloading object bucket={} key={} -> {:?}",
+            bucket,
+            key,
+            dest
+        );
+        self.run_with_retry("get_object", move |client| {
+            let dest = dest.to_path_buf();
+            let key = key.to_string();
+            async move {
+                let log_key = key.clone();
+                let resp = client
+                    .get_object()
+                    .bucket(bucket)
+                    .key(key)
+                    .send()
+                    .await
+                    .map_err(|e| {
+                        log::error!(
+                            "Failed to download object bucket={} key={}: {}",
+                            bucket,
+                            log_key,
+                            e
+                        );
+                        CoreError::S3(e.to_string())
+                    })?;
 
-            let data = resp
-                .body
-                .collect()
-                .await
-                .map_err(|e| {
-                    log::error!(
-                        "Failed to read object stream bucket={} key={}: {}",
-                        bucket,
-                        key,
-                        e
-                    );
-                    CoreError::S3(e.to_string())
-                })?
-                .into_bytes()
-                .to_vec();
+                let mut file = tokio::fs::File::create(&dest)
+                    .await
+                    .map_err(|e| CoreError::Io(format!("创建文件失败 {:?}: {}", dest, e)))?;
 
-            log::info!(
-                "Object downloaded successfully bucket={} key={} size={}",
-                bucket,
-                key,
-                data.len()
-            );
-            Ok(data)
+                let mut reader = resp.body.into_async_read();
+                let written = tokio::io::copy(&mut reader, &mut file)
+                    .await
+                    .map_err(|e| CoreError::Io(format!("写入文件失败 {:?}: {}", dest, e)))?;
+                file.flush()
+                    .await
+                    .map_err(|e| CoreError::Io(format!("刷新文件失败 {:?}: {}", dest, e)))?;
+
+                log::info!(
+                    "Object downloaded successfully bucket={} key={} size={}",
+                    bucket,
+                    log_key,
+                    written
+                );
+                Ok(written)
+            }
         })
         .await
     }
 
-    pub async fn put_object(&self, bucket: &str, key: &str, data: Vec<u8>) -> Result<(), CoreError> {
-        log::info!(
-            "Uploading object bucket={} key={} size={}",
-            bucket,
-            key,
-            data.len()
-        );
+    /// 创建一个空对象以模拟“文件夹”（S3 无真实目录）。
+    pub async fn create_folder(&self, bucket: &str, key: &str) -> Result<(), CoreError> {
+        log::info!("Creating folder marker bucket={} key={}", bucket, key);
         self.run_with_retry("put_object", move |client| {
-            let data = data.clone();
+            let key = key.to_string();
             async move {
+                let log_key = key.clone();
                 client
                     .put_object()
                     .bucket(bucket)
                     .key(key)
-                    .body(ByteStream::from(data))
+                    .body(ByteStream::from(Vec::new()))
+                    .send()
+                    .await
+                    .map_err(|e| {
+                        log::error!(
+                            "Failed to create folder marker bucket={} key={}: {}",
+                            bucket,
+                            log_key,
+                            e
+                        );
+                        CoreError::S3(e.to_string())
+                    })?;
+                Ok(())
+            }
+        })
+        .await
+    }
+    pub async fn put_object_from_file(
+        &self,
+        bucket: &str,
+        key: &str,
+        src: &Path,
+    ) -> Result<(), CoreError> {
+        let size = tokio::fs::metadata(src).await.map(|m| m.len()).unwrap_or(0);
+        log::info!(
+            "Uploading object bucket={} key={} size={} from {:?}",
+            bucket,
+            key,
+            size,
+            src
+        );
+        self.run_with_retry("put_object", move |client| {
+            let src = src.to_path_buf();
+            async move {
+                let stream = ByteStream::from_path(&src)
+                    .await
+                    .map_err(|e| CoreError::Io(format!("打开文件失败 {:?}: {}", src, e)))?;
+
+                client
+                    .put_object()
+                    .bucket(bucket)
+                    .key(key)
+                    .body(stream)
                     .send()
                     .await
                     .map_err(|e| {

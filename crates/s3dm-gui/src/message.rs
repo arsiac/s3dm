@@ -71,11 +71,11 @@ pub enum Message {
     ObjectsResult(Result<ObjectListResult, CoreError>),
     /// 删除操作结果
     DeleteResult(Result<(), CoreError>),
-    /// 下载结果，包含保存路径和数据
+    /// 下载结果，包含保存路径与写入字节数
     DownloadResult {
         key: String,
         save_path: String,
-        data: Result<Vec<u8>, CoreError>,
+        data: Result<u64, CoreError>,
     },
     /// 上传操作结果
     UploadResult(Result<(), CoreError>),
