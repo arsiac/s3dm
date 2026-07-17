@@ -4,11 +4,55 @@
 //! 处理所有 `Message` 变体，更新 `App` 状态并返回副作用 `Task`。
 
 use iced::Task;
+use std::path::{Path, PathBuf};
 
 use crate::app::App;
 use crate::connection::ConnectionForm;
 use crate::constants::AVAILABLE_THEMES;
 use crate::message::Message;
+
+/// 清理文件名，移除/替换对文件系统不安全的字符。
+///
+/// 替换路径分隔符与 Windows 保留字符，避免下载时写出非法路径。
+fn sanitize_filename(name: &str) -> String {
+    let reserved = ['/', '\\', '\0', ':', '*', '?', '"', '<', '>', '|'];
+    let mut out: String = name
+        .chars()
+        .map(|c| if reserved.contains(&c) { '_' } else { c })
+        .collect();
+    if out.trim().is_empty() || out == "." || out == ".." {
+        out = "_".to_string();
+    }
+    out
+}
+
+/// 若目标路径已存在，则追加 `_N` 后缀生成不冲突的唯一路径，避免静默覆盖。
+fn unique_save_path(base: &Path) -> PathBuf {
+    if !base.exists() {
+        return base.to_path_buf();
+    }
+    let parent = base.parent();
+    let stem = base
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let ext = base
+        .extension()
+        .map(|e| format!(".{}", e.to_string_lossy()));
+    let mut n = 1;
+    loop {
+        let candidate = match parent {
+            Some(p) if !p.as_os_str().is_empty() => {
+                p.join(format!("{}_{}{}", stem, n, ext.as_deref().unwrap_or("")))
+            }
+            _ => PathBuf::from(format!("{}_{}{}", stem, n, ext.as_deref().unwrap_or(""))),
+        };
+        if !candidate.exists() {
+            return candidate;
+        }
+        n += 1;
+    }
+}
 
 /// 应用状态更新入口
 ///
@@ -283,7 +327,10 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             };
             app.is_loading = true;
             Task::perform(
-                async move { s3.list_objects(&bucket, &prefix, "/", 200, token.as_deref()).await },
+                async move {
+                    s3.list_objects(&bucket, &prefix, "/", 200, token.as_deref())
+                        .await
+                },
                 Message::ObjectsResult,
             )
         }
@@ -393,7 +440,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             log::info!("Creating folder: {}", key);
             app.is_loading = true;
             Task::perform(
-                async move { s3.put_object(&bucket, &key, vec![]).await },
+                async move { s3.create_folder(&bucket, &key).await },
                 Message::UploadResult,
             )
         }
@@ -472,25 +519,18 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             let key = format!(
                 "{}{}",
                 prefix,
-                path.file_name()
-                    .map(|n| n.to_string_lossy())
-                    .unwrap_or_default()
+                sanitize_filename(
+                    path.file_name()
+                        .map(|n| n.to_string_lossy())
+                        .unwrap_or_default()
+                        .as_ref()
+                )
             );
+            let src_path = path.clone();
             log::info!("Uploading file: {:?} -> {}", path, key);
             app.is_loading = true;
             Task::perform(
-                async move {
-                    match std::fs::read(&path) {
-                        Ok(data) => s3.put_object(&bucket, &key, data).await,
-                        Err(e) => {
-                            log::error!("Failed to read file: {:?}: {}", path, e);
-                            Err(s3dm_core::CoreError::S3(
-                                rust_i18n::t!("read_file_failed", error = e.to_string())
-                                    .to_string(),
-                            ))
-                        }
-                    }
-                },
+                async move { s3.put_object_from_file(&bucket, &key, &src_path).await },
                 Message::UploadResult,
             )
         }
@@ -524,14 +564,26 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 None => return Task::none(),
             };
             let dir = app.download_dir.clone();
-            let fname = key.rsplit_once('/').map(|(_, n)| n).unwrap_or(&key);
-            let save_path = format!("{}/{}", dir.trim_end_matches('/'), fname);
+            let fname = sanitize_filename(key.rsplit_once('/').map(|(_, n)| n).unwrap_or(&key));
+            let base = format!("{}/{}", dir.trim_end_matches('/'), fname);
+            let save_path = unique_save_path(std::path::Path::new(&base))
+                .to_string_lossy()
+                .to_string();
+            if base != save_path {
+                log::warn!(
+                    "Download target exists, renamed to avoid overwrite: {} -> {}",
+                    base,
+                    save_path
+                );
+            }
             log::info!("Downloading object: {} -> {}", key, save_path);
             app.is_loading = true;
             let key_c = key.clone();
             Task::perform(
                 async move {
-                    let data = s3.get_object(&bucket, &key).await;
+                    let data = s3
+                        .get_object_to_file(&bucket, &key, std::path::Path::new(&save_path))
+                        .await;
                     (key_c, save_path, data)
                 },
                 |(key, save_path, data)| Message::DownloadResult {
@@ -551,10 +603,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             app.is_loading = false;
             match data {
                 Ok(bytes) => {
-                    match std::fs::write(&save_path, bytes) {
-                        Ok(()) => log::info!("Download saved to: {}", save_path),
-                        Err(e) => log::error!("Failed to save file: {}: {}", save_path, e),
-                    }
+                    log::info!("Download saved to: {} ({} bytes)", save_path, bytes);
                     Task::none()
                 }
                 Err(e) => {
