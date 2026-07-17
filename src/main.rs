@@ -19,12 +19,22 @@ fn main() -> iced::Result {
         .theme(|app: &s3dm_gui::App| app.theme.clone())
         .window(iced::window::Settings {
             icon: window_icon,
-            platform_specific: iced::window::settings::PlatformSpecific {
-                application_id: "s3dm".into(),
-                ..Default::default()
-            },
+            platform_specific: platform_specific_settings(),
             ..Default::default()
         })
         .centered()
         .run()
+}
+
+#[cfg(target_os = "linux")]
+fn platform_specific_settings() -> iced::window::settings::PlatformSpecific {
+    iced::window::settings::PlatformSpecific {
+        application_id: "s3dm".into(),
+        ..Default::default()
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn platform_specific_settings() -> iced::window::settings::PlatformSpecific {
+    iced::window::settings::PlatformSpecific::default()
 }
