@@ -14,6 +14,7 @@ use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
+use crate::icon;
 use crate::message::Message;
 
 /// 渲染设置面板（不含遮罩 overlay）
@@ -60,12 +61,10 @@ pub fn view_settings(app: &App) -> Element<'_, Message> {
     let svg_style = move |_: &Theme, _: svg::Status| svg::Style {
         color: Some(p.text_secondary),
     };
-    let dismiss = svg(SvgHandle::from_memory(
-        include_bytes!("../icons/dismiss-16-filled.svg").to_vec(),
-    ))
-    .width(Length::Fixed(16.0))
-    .height(Length::Fixed(16.0))
-    .style(svg_style);
+    let dismiss = svg(SvgHandle::from_memory(icon::ICON_DISMISS.to_vec()))
+        .width(Length::Fixed(16.0))
+        .height(Length::Fixed(16.0))
+        .style(svg_style);
 
     let panel = column![
         row![

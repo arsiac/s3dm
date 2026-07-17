@@ -14,6 +14,7 @@ use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
+use crate::icon;
 use crate::message::Message;
 
 /// 渲染左侧面板
@@ -65,12 +66,10 @@ pub fn view_left_panel(app: &App) -> Element<'_, Message> {
                 .color(p.text_secondary),
             container(
                 button(
-                    svg(SvgHandle::from_memory(
-                        include_bytes!("../icons/add-16-filled.svg").to_vec(),
-                    ))
-                    .width(Length::Fixed(16.0))
-                    .height(Length::Fixed(16.0))
-                    .style(svg_style),
+                    svg(SvgHandle::from_memory(icon::ICON_ADD.to_vec(),))
+                        .width(Length::Fixed(16.0))
+                        .height(Length::Fixed(16.0))
+                        .style(svg_style),
                 )
                 .style(icon_btn_style)
                 .on_press(Message::ConnectionAdd)
@@ -79,12 +78,10 @@ pub fn view_left_panel(app: &App) -> Element<'_, Message> {
             .width(Length::Fill)
             .align_x(Alignment::End),
             button(
-                svg(SvgHandle::from_memory(
-                    include_bytes!("../icons/settings-16-filled.svg").to_vec(),
-                ))
-                .width(Length::Fixed(16.0))
-                .height(Length::Fixed(16.0))
-                .style(svg_style),
+                svg(SvgHandle::from_memory(icon::ICON_SETTINGS.to_vec(),))
+                    .width(Length::Fixed(16.0))
+                    .height(Length::Fixed(16.0))
+                    .style(svg_style),
             )
             .style(icon_btn_style)
             .on_press(Message::ToggleSettings)
@@ -147,11 +144,11 @@ pub fn view_left_panel(app: &App) -> Element<'_, Message> {
                 })
         };
 
-        let edit_btn = button(action_svg(include_bytes!("../icons/edit-16-filled.svg")))
+        let edit_btn = button(action_svg(icon::ICON_EDIT))
             .style(action_btn_style)
             .on_press(Message::ConnectionEdit(conn.id.clone()))
             .padding(Padding::from([2, 4]));
-        let delete_btn = button(action_svg(include_bytes!("../icons/delete-16-filled.svg")))
+        let delete_btn = button(action_svg(icon::ICON_DELETE))
             .style(action_btn_style)
             .on_press(Message::ConnectionDelete(conn.id.clone()))
             .padding(Padding::from([2, 4]));

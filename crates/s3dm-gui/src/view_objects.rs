@@ -59,24 +59,18 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
         color: Some(constants::custom_palette(t).text_secondary),
     };
 
-    let refresh_svg = svg(SvgHandle::from_memory(
-        include_bytes!("../icons/arrow-clockwise-16-filled.svg").to_vec(),
-    ))
-    .width(Length::Fixed(16.0))
-    .height(Length::Fixed(16.0))
-    .style(svg_style);
-    let upload_svg = svg(SvgHandle::from_memory(
-        include_bytes!("../icons/cloud-arrow-up-16-filled.svg").to_vec(),
-    ))
-    .width(Length::Fixed(16.0))
-    .height(Length::Fixed(16.0))
-    .style(svg_style);
-    let back_svg = svg(SvgHandle::from_memory(
-        include_bytes!("../icons/arrow-left-16-filled.svg").to_vec(),
-    ))
-    .width(Length::Fixed(16.0))
-    .height(Length::Fixed(16.0))
-    .style(svg_style);
+    let refresh_svg = svg(SvgHandle::from_memory(icon::ICON_REFRESH.to_vec()))
+        .width(Length::Fixed(16.0))
+        .height(Length::Fixed(16.0))
+        .style(svg_style);
+    let upload_svg = svg(SvgHandle::from_memory(icon::ICON_CLOUD_UPLOAD.to_vec()))
+        .width(Length::Fixed(16.0))
+        .height(Length::Fixed(16.0))
+        .style(svg_style);
+    let back_svg = svg(SvgHandle::from_memory(icon::ICON_ARROW_LEFT.to_vec()))
+        .width(Length::Fixed(16.0))
+        .height(Length::Fixed(16.0))
+        .style(svg_style);
 
     // ── 面包屑导航栏 ──
     let breadcrumb = row![
@@ -84,12 +78,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
             .style(icon_btn_style)
             .on_press(Message::BackToBuckets),
         row![
-            svg(SvgHandle::from_memory(
-                include_bytes!("../icons/folder-16-filled.svg").to_vec()
-            ))
-            .width(Length::Fixed(16.0))
-            .height(Length::Fixed(16.0))
-            .style(svg_style),
+            svg(SvgHandle::from_memory(icon::ICON_FOLDER.to_vec()))
+                .width(Length::Fixed(16.0))
+                .height(Length::Fixed(16.0))
+                .style(svg_style),
             text(bucket_name).size(16),
         ]
         .spacing(4)
@@ -106,12 +98,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
             .style(icon_btn_style)
             .on_press(Message::UploadObject),
         button(
-            svg(SvgHandle::from_memory(
-                include_bytes!("../icons/folder-add-16-filled.svg").to_vec()
-            ))
-            .width(Length::Fixed(16.0))
-            .height(Length::Fixed(16.0))
-            .style(svg_style),
+            svg(SvgHandle::from_memory(icon::ICON_FOLDER_ADD.to_vec()))
+                .width(Length::Fixed(16.0))
+                .height(Length::Fixed(16.0))
+                .style(svg_style),
         )
         .style(icon_btn_style)
         .on_press(Message::ToggleNewFolder),
@@ -159,12 +149,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
             .trim_end_matches('/');
 
         let folder_delete_btn = button(
-            svg(SvgHandle::from_memory(
-                include_bytes!("../icons/delete-16-filled.svg").to_vec(),
-            ))
-            .width(Length::Fixed(16.0))
-            .height(Length::Fixed(16.0))
-            .style(svg_style),
+            svg(SvgHandle::from_memory(icon::ICON_DELETE.to_vec()))
+                .width(Length::Fixed(16.0))
+                .height(Length::Fixed(16.0))
+                .style(svg_style),
         )
         .style(icon_btn_style)
         .on_press(Message::DeletePrefix(prefix.clone()));
@@ -173,12 +161,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
             button(
                 row![
                     row![
-                        svg(SvgHandle::from_memory(
-                            include_bytes!("../icons/folder-16-filled.svg").to_vec()
-                        ))
-                        .width(Length::Fixed(14.0))
-                        .height(Length::Fixed(14.0))
-                        .style(svg_style),
+                        svg(SvgHandle::from_memory(icon::ICON_FOLDER.to_vec()))
+                            .width(Length::Fixed(14.0))
+                            .height(Length::Fixed(14.0))
+                            .style(svg_style),
                         text(display_name).size(14),
                     ]
                     .spacing(4)
@@ -210,9 +196,9 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
         // 下载按钮：正在下载的对象显示 cloud-link 图标并禁用（不设置 on_press）
         let is_downloading = app.downloading_key.as_deref() == Some(obj.key.as_str());
         let download_icon: &[u8] = if is_downloading {
-            include_bytes!("../icons/cloud-link-16-filled.svg")
+            icon::ICON_CLOUD_LINK
         } else {
-            include_bytes!("../icons/cloud-arrow-down-16-filled.svg")
+            icon::ICON_CLOUD_DOWNLOAD
         };
         let mut download_btn = button(
             svg(SvgHandle::from_memory(download_icon.to_vec()))
@@ -250,12 +236,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
             .color(p.text_secondary),
             download_btn,
             button(
-                svg(SvgHandle::from_memory(
-                    include_bytes!("../icons/delete-16-filled.svg").to_vec()
-                ))
-                .width(Length::Fixed(16.0))
-                .height(Length::Fixed(16.0))
-                .style(svg_style),
+                svg(SvgHandle::from_memory(icon::ICON_DELETE.to_vec()))
+                    .width(Length::Fixed(16.0))
+                    .height(Length::Fixed(16.0))
+                    .style(svg_style),
             )
             .style(icon_btn_style)
             .on_press(Message::DeleteObject(obj.key.clone())),

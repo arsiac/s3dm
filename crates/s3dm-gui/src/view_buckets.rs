@@ -14,6 +14,7 @@ use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
+use crate::icon;
 use crate::message::Message;
 
 /// 渲染存储桶列表（右侧内容区）
@@ -47,22 +48,18 @@ pub fn view_buckets(app: &App) -> Element<'_, Message> {
         color: Some(constants::custom_palette(t).text_secondary),
     };
 
-    let refresh_svg = svg(SvgHandle::from_memory(
-        include_bytes!("../icons/arrow-clockwise-16-filled.svg").to_vec(),
-    ))
-    .width(Length::Fixed(16.0))
-    .height(Length::Fixed(16.0))
-    .style(svg_style);
+    let refresh_svg = svg(SvgHandle::from_memory(icon::ICON_REFRESH.to_vec()))
+        .width(Length::Fixed(16.0))
+        .height(Length::Fixed(16.0))
+        .style(svg_style);
 
     // ── 标题栏 ──
     let header = row![
         row![
-            svg(SvgHandle::from_memory(
-                include_bytes!("../icons/folder-16-filled.svg").to_vec()
-            ))
-            .width(Length::Fixed(16.0))
-            .height(Length::Fixed(16.0))
-            .style(svg_style),
+            svg(SvgHandle::from_memory(icon::ICON_FOLDER.to_vec()))
+                .width(Length::Fixed(16.0))
+                .height(Length::Fixed(16.0))
+                .style(svg_style),
             text(t!("buckets").to_string()).size(16),
         ]
         .spacing(4)
@@ -110,12 +107,10 @@ pub fn view_buckets(app: &App) -> Element<'_, Message> {
         items.push(
             button(
                 row![
-                    svg(SvgHandle::from_memory(
-                        include_bytes!("../icons/folder-16-filled.svg").to_vec()
-                    ))
-                    .width(Length::Fixed(14.0))
-                    .height(Length::Fixed(14.0))
-                    .style(svg_style),
+                    svg(SvgHandle::from_memory(icon::ICON_FOLDER.to_vec()))
+                        .width(Length::Fixed(14.0))
+                        .height(Length::Fixed(14.0))
+                        .style(svg_style),
                     text(&bucket.name).size(14),
                 ]
                 .spacing(6)

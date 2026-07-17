@@ -15,6 +15,7 @@ use iced::{
 use rust_i18n::t;
 
 use crate::app::App;
+use crate::icon;
 use crate::message::Message;
 
 use crate::view_buckets::view_buckets;
@@ -57,14 +58,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             }
         };
 
-        let dismiss = svg(SvgHandle::from_memory(
-            include_bytes!("../icons/dismiss-16-filled.svg").to_vec(),
-        ))
-        .width(Length::Fixed(16.0))
-        .height(Length::Fixed(16.0))
-        .style(|_: &Theme, _: svg::Status| svg::Style {
-            color: Some(iced::Color::WHITE),
-        });
+        let dismiss = svg(SvgHandle::from_memory(icon::ICON_DISMISS.to_vec()))
+            .width(Length::Fixed(16.0))
+            .height(Length::Fixed(16.0))
+            .style(|_: &Theme, _: svg::Status| svg::Style {
+                color: Some(iced::Color::WHITE),
+            });
 
         let error_bar = container(
             row![
@@ -115,14 +114,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             }
         };
 
-        let dismiss = svg(SvgHandle::from_memory(
-            include_bytes!("../icons/dismiss-16-filled.svg").to_vec(),
-        ))
-        .width(Length::Fixed(16.0))
-        .height(Length::Fixed(16.0))
-        .style(|_: &Theme, _: svg::Status| svg::Style {
-            color: Some(iced::Color::WHITE),
-        });
+        let dismiss = svg(SvgHandle::from_memory(icon::ICON_DISMISS.to_vec()))
+            .width(Length::Fixed(16.0))
+            .height(Length::Fixed(16.0))
+            .style(|_: &Theme, _: svg::Status| svg::Style {
+                color: Some(iced::Color::WHITE),
+            });
 
         let success_bar = container(
             row![

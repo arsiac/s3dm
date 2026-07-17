@@ -18,6 +18,20 @@ pub const FILE_IMAGE: &[u8] = include_bytes!("../icons/image-16-filled.svg");
 pub const FILE_ARCHIVE: &[u8] = include_bytes!("../icons/folder-zip-16-filled.svg");
 pub const FILE_DEFAULT: &[u8] = include_bytes!("../icons/document-16-filled.svg");
 
+/// 界面操作图标（16×16 填充 SVG），统一在此导入供各视图复用。
+pub const ICON_DISMISS: &[u8] = include_bytes!("../icons/dismiss-16-filled.svg");
+pub const ICON_ADD: &[u8] = include_bytes!("../icons/add-16-filled.svg");
+pub const ICON_SETTINGS: &[u8] = include_bytes!("../icons/settings-16-filled.svg");
+pub const ICON_EDIT: &[u8] = include_bytes!("../icons/edit-16-filled.svg");
+pub const ICON_DELETE: &[u8] = include_bytes!("../icons/delete-16-filled.svg");
+pub const ICON_REFRESH: &[u8] = include_bytes!("../icons/arrow-clockwise-16-filled.svg");
+pub const ICON_FOLDER: &[u8] = include_bytes!("../icons/folder-16-filled.svg");
+pub const ICON_CLOUD_UPLOAD: &[u8] = include_bytes!("../icons/cloud-arrow-up-16-filled.svg");
+pub const ICON_ARROW_LEFT: &[u8] = include_bytes!("../icons/arrow-left-16-filled.svg");
+pub const ICON_FOLDER_ADD: &[u8] = include_bytes!("../icons/folder-add-16-filled.svg");
+pub const ICON_CLOUD_LINK: &[u8] = include_bytes!("../icons/cloud-link-16-filled.svg");
+pub const ICON_CLOUD_DOWNLOAD: &[u8] = include_bytes!("../icons/cloud-arrow-down-16-filled.svg");
+
 /// 根据文件名返回对应的文件类型图标字节。
 ///
 /// 映射规则：
