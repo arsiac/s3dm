@@ -113,11 +113,19 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
                 value: b.to_string(),
             }),
         row![
-            button(text(t!("test_connection").to_string())).on_press(Message::ConnectionFormTest),
-            button(text(t!("save").to_string())).on_press(Message::ConnectionFormSave),
-            button(text(t!("cancel").to_string())).on_press(Message::ConnectionFormCancel),
+            button(text(t!("test_connection").to_string()))
+                .style(btn_style)
+                .on_press(Message::ConnectionFormTest),
+            container(row![
+                button(text(t!("save").to_string())).on_press(Message::ConnectionFormSave),
+                button(text(t!("cancel").to_string())).on_press(Message::ConnectionFormCancel),
+            ]
+            .spacing(10))
+            .width(Length::Fill)
+            .align_x(Alignment::End),
         ]
-        .spacing(10),
+        .spacing(10)
+        .align_y(Alignment::Center),
         {
             let pal = constants::custom_palette(&app.theme);
             let msg = if app.connection_testing {
