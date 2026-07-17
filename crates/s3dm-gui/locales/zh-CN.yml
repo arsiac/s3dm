@@ -41,6 +41,12 @@ folder: "文件夹"
 download: "下载"
 load_more: "加载更多..."
 
+# 预览
+preview_loading: "正在加载预览..."
+preview_too_large: "文件过大，无法预览，请下载后查看。"
+preview_unsupported: "不支持该文件类型的预览。"
+preview_failed: "加载预览失败: %{error}"
+
 # Status
 loading: "加载中..."
 downloading_status: "正在下载: %{name}..."

@@ -10,6 +10,7 @@ use s3dm_core::{CoreError, S3Bucket, S3Manager, S3Object};
 
 use crate::connection::ConnectionForm;
 use crate::message::Message;
+use crate::preview::PreviewContent;
 
 /// 应用主状态结构体，遵循 Elm 架构的 Model 层
 ///
@@ -65,6 +66,12 @@ pub struct App {
     pub pending_delete_object: Option<String>,
     /// 待删除确认的前缀路径
     pub pending_delete_prefix: Option<String>,
+    /// 当前预览内容（None 表示未打开预览）
+    pub preview: Option<PreviewContent>,
+    /// 当前正在预览的对象 Key
+    pub preview_key: Option<String>,
+    /// 是否正在加载预览内容
+    pub preview_loading: bool,
     /// 新建文件夹输入框内容
     pub new_folder_input: Option<String>,
     /// 是否显示设置面板
@@ -153,6 +160,9 @@ pub fn boot() -> (App, Task<Message>) {
         pending_delete: None,
         pending_delete_object: None,
         pending_delete_prefix: None,
+        preview: None,
+        preview_key: None,
+        preview_loading: false,
         new_folder_input: None,
         show_settings: false,
         theme: Theme::Dark,

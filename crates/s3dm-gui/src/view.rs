@@ -18,6 +18,7 @@ use crate::app::App;
 use crate::icon;
 use crate::message::Message;
 
+use crate::preview;
 use crate::view_buckets::view_buckets;
 use crate::view_dialogs;
 use crate::view_form::view_connection_form;
@@ -208,6 +209,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 删除前缀确认弹窗
     if let Some(ref prefix) = app.pending_delete_prefix {
         stack_elements.push(view_dialogs::delete_prefix(app, prefix));
+    }
+
+    // 预览弹窗
+    if let (Some(content), Some(key)) = (&app.preview, &app.preview_key) {
+        stack_elements.push(preview::view(app, content, key));
+    } else if app.preview_loading {
+        stack_elements.push(preview::view_loading(app));
     }
 
     iced::widget::stack(stack_elements).into()

@@ -4,7 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-iced = { workspace = true, features = ["svg"] }
+iced = { workspace = true, features = ["svg", "image", "tokio", "highlighter"] }
+iced_highlighter = "0.14"
 rfd = "0.15"
 dirs = { workspace = true }
 tokio = { workspace = true }

@@ -371,6 +371,75 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
 
+        // ── 预览对象 ──
+        Message::PreviewObject(key) => {
+            log::info!("Previewing object: {}", key);
+            let bucket = match &app.current_bucket {
+                Some(b) => b.clone(),
+                None => return Task::none(),
+            };
+            let s3 = match &app.s3_manager {
+                Some(s) => s.clone(),
+                None => return Task::none(),
+            };
+            let size = app
+                .objects
+                .iter()
+                .find(|o| o.key == key)
+                .map(|o| o.size)
+                .unwrap_or(0);
+            app.error_message = None;
+            app.preview_key = Some(key.clone());
+
+            // 文件过大：不下载，直接给出“过大”提示
+            if crate::preview::classify(&key, size) == crate::preview::PreviewKind::TooLarge {
+                app.preview_loading = false;
+                app.preview = Some(crate::preview::PreviewContent::TooLarge);
+                return Task::none();
+            }
+
+            app.preview_loading = true;
+            app.preview = None;
+            let key_c = key.clone();
+            let key_a = key_c.clone();
+            let key_b = key_c.clone();
+            Task::perform(
+                async move { s3.get_object_bytes(&bucket, &key_a).await },
+                move |data| Message::PreviewResult {
+                    key: key_b,
+                    data: data.map(|bytes| crate::preview::build_preview(&key_c, size, bytes)),
+                },
+            )
+        }
+
+        // ── 预览内容加载结果 ──
+        Message::PreviewResult { key, data } => {
+            app.preview_loading = false;
+            match data {
+                Ok(content) => {
+                    log::info!("Preview loaded for: {}", key);
+                    app.preview_key = Some(key);
+                    app.preview = Some(content);
+                }
+                Err(e) => {
+                    log::error!("Failed to load preview for {}: {}", key, e);
+                    app.preview_key = None;
+                    app.preview = None;
+                    app.error_message =
+                        Some(rust_i18n::t!("preview_failed", error = e.to_string()).to_string());
+                }
+            }
+            Task::none()
+        }
+
+        // ── 关闭预览 ──
+        Message::ClosePreview => {
+            app.preview = None;
+            app.preview_key = None;
+            app.preview_loading = false;
+            Task::none()
+        }
+
         // ── 提示删除对象确认 ──
         Message::DeleteObject(key) => {
             log::info!("Prompting delete object confirmation: {}", key);

@@ -5,6 +5,7 @@
 
 use std::path::PathBuf;
 
+use crate::preview::PreviewContent;
 use s3dm_core::{CoreError, ObjectListResult, S3Bucket, S3Manager};
 
 /// 应用消息枚举，涵盖所有用户交互与异步回调
@@ -57,6 +58,8 @@ pub enum Message {
     RefreshObjects,
     /// 加载更多对象（分页）
     LoadMoreObjects,
+    /// 预览单个对象（文本/代码/图片）
+    PreviewObject(String),
     /// 提示删除单个对象确认
     DeleteObject(String),
     /// 提示删除整个前缀确认
@@ -68,6 +71,13 @@ pub enum Message {
     // ── 异步操作结果 ──
     /// 对象列表加载结果
     ObjectsResult(Result<ObjectListResult, CoreError>),
+    /// 预览内容加载结果
+    PreviewResult {
+        key: String,
+        data: Result<PreviewContent, CoreError>,
+    },
+    /// 关闭预览弹窗
+    ClosePreview,
     /// 删除操作结果
     DeleteResult(Result<(), CoreError>),
     /// 下载结果，包含保存路径与写入字节数

@@ -58,6 +58,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
     let svg_style = |t: &Theme, _: svg::Status| svg::Style {
         color: Some(constants::custom_palette(t).text_secondary),
     };
+    // 禁用态预览按钮的图标颜色（更暗，表达“不可用”）
+    let preview_disabled_svg_style = |t: &Theme, _: svg::Status| svg::Style {
+        color: Some(disabled_icon_color(&constants::custom_palette(t))),
+    };
 
     let refresh_svg = svg(SvgHandle::from_memory(icon::ICON_REFRESH.to_vec()))
         .width(Length::Fixed(16.0))
@@ -211,7 +215,29 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
             download_btn = download_btn.on_press(Message::DownloadObject(obj.key.clone()));
         }
 
-        let row_content = row![
+        // 预览按钮：所有文件都显示，但不可预览类型显示为禁用态（灰化、不可点）
+        let can_preview = crate::preview::classify(&obj.key, obj.size)
+            != crate::preview::PreviewKind::Unsupported;
+        let is_previewing =
+            app.preview_key.as_deref() == Some(obj.key.as_str()) && app.preview.is_some();
+        let preview_svg_style = if can_preview {
+            svg_style
+        } else {
+            preview_disabled_svg_style
+        };
+        let mut preview_btn = button(
+            svg(SvgHandle::from_memory(icon::ICON_PREVIEW.to_vec()))
+                .width(Length::Fixed(16.0))
+                .height(Length::Fixed(16.0))
+                .style(preview_svg_style),
+        )
+        .style(icon_btn_style);
+        // 可预览且未在预览中时才绑定点击；否则按钮自动进入 Disabled 态
+        if can_preview && !is_previewing {
+            preview_btn = preview_btn.on_press(Message::PreviewObject(obj.key.clone()));
+        }
+
+        let row_children: Vec<Element<Message>> = vec![
             row![
                 svg(SvgHandle::from_memory(icon::file_icon(name).to_vec()))
                     .width(Length::Fixed(14.0))
@@ -220,21 +246,25 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                 text(name).size(14),
             ]
             .spacing(4)
-            .align_y(Alignment::Center),
+            .align_y(Alignment::Center)
+            .into(),
             container(
                 text(constants::format_size(obj.size))
                     .size(12)
-                    .color(p.text_secondary)
+                    .color(p.text_secondary),
             )
-            .width(Length::Fill),
+            .width(Length::Fill)
+            .into(),
             text(
                 obj.last_modified
                     .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
-                    .unwrap_or_default()
+                    .unwrap_or_default(),
             )
             .size(12)
-            .color(p.text_secondary),
-            download_btn,
+            .color(p.text_secondary)
+            .into(),
+            preview_btn.into(),
+            download_btn.into(),
             button(
                 svg(SvgHandle::from_memory(icon::ICON_DELETE.to_vec()))
                     .width(Length::Fixed(16.0))
@@ -242,10 +272,11 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                     .style(svg_style),
             )
             .style(icon_btn_style)
-            .on_press(Message::DeleteObject(obj.key.clone())),
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center);
+            .on_press(Message::DeleteObject(obj.key.clone()))
+            .into(),
+        ];
+
+        let row_content = row(row_children).spacing(10).align_y(Alignment::Center);
 
         items.push(
             container(row_content)
@@ -279,4 +310,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
+}
+
+/// 计算禁用态图标颜色：在 `text_secondary` 基础上压暗，表达“不可用”
+fn disabled_icon_color(p: &constants::CustomPalette) -> iced::Color {
+    let c = p.text_secondary;
+    iced::Color::from_rgba(c.r * 0.6, c.g * 0.6, c.b * 0.6, c.a.min(0.45))
 }

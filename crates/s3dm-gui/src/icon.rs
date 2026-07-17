@@ -33,6 +33,7 @@ pub const ICON_ARROW_LEFT: &[u8] = include_bytes!("../icons/arrow-left-16-filled
 pub const ICON_FOLDER_ADD: &[u8] = include_bytes!("../icons/folder-add-16-filled.svg");
 pub const ICON_CLOUD_LINK: &[u8] = include_bytes!("../icons/cloud-link-16-filled.svg");
 pub const ICON_CLOUD_DOWNLOAD: &[u8] = include_bytes!("../icons/cloud-arrow-down-16-filled.svg");
+pub const ICON_PREVIEW: &[u8] = include_bytes!("../icons/preview-link-16-filled.svg");
 
 /// 根据文件名返回对应的文件类型图标字节。
 ///

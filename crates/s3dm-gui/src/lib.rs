@@ -19,6 +19,7 @@
 //! | `view_form` | 连接编辑表单 |
 //! | `view_dialogs` | 模态对话框（删除确认、新建文件夹） |
 //! | `view_settings` | 设置面板 + 状态栏 |
+//! | `preview` | 对象预览（文本 / 代码语法高亮 + 行号 / 图片） |
 
 // ── 国际化初始化 ──
 rust_i18n::i18n!("locales");
@@ -29,6 +30,7 @@ pub mod connection;
 pub mod constants;
 pub mod icon;
 pub mod message;
+pub mod preview;
 pub mod update;
 pub mod view;
 pub mod view_buckets;

@@ -529,6 +529,50 @@ impl S3Manager {
         .await
     }
 
+    /// 下载对象全部内容到内存（仅用于小文件预览）。
+    ///
+    /// 大对象请使用 `get_object_to_file_with_progress` 流式写入磁盘，
+    /// 避免将整个对象载入内存造成压力。
+    pub async fn get_object_bytes(&self, bucket: &str, key: &str) -> Result<Vec<u8>, CoreError> {
+        log::info!("Fetching object bytes bucket={} key={}", bucket, key);
+        self.run_with_retry("get_object", move |client| {
+            let key = key.to_string();
+            async move {
+                let log_key = key.clone();
+                let resp = client
+                    .get_object()
+                    .bucket(bucket)
+                    .key(key)
+                    .send()
+                    .await
+                    .map_err(|e| {
+                        log::error!(
+                            "Failed to fetch object bytes bucket={} key={}: {}",
+                            bucket,
+                            log_key,
+                            e
+                        );
+                        CoreError::S3(e.to_string())
+                    })?;
+                let data = resp
+                    .body
+                    .collect()
+                    .await
+                    .map_err(|e| CoreError::Io(format!("读取响应失败: {}", e)))?
+                    .into_bytes()
+                    .to_vec();
+                log::info!(
+                    "Object bytes fetched bucket={} key={} size={}",
+                    bucket,
+                    log_key,
+                    data.len()
+                );
+                Ok(data)
+            }
+        })
+        .await
+    }
+
     /// 创建一个空对象以模拟“文件夹”（S3 无真实目录）。
     pub async fn create_folder(&self, bucket: &str, key: &str) -> Result<(), CoreError> {
         log::info!("Creating folder marker bucket={} key={}", bucket, key);
