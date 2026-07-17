@@ -445,6 +445,90 @@ impl S3Manager {
         .await
     }
 
+    /// 下载对象并流式写入本地文件，同时通过回调上报下载进度。
+    ///
+    /// `on_progress` 参数为 `(已下载字节数, 总大小)`，总大小取自响应的
+    /// `Content-Length`，若服务端未返回则为 `None`（不确定态）。
+    ///
+    /// 注意：内部带重试，若发生重试将从 0 重新写入并重新上报进度。
+    pub async fn get_object_to_file_with_progress<F>(
+        &self,
+        bucket: &str,
+        key: &str,
+        dest: &Path,
+        on_progress: F,
+    ) -> Result<u64, CoreError>
+    where
+        F: Fn(u64, Option<u64>) + Send + Sync,
+    {
+        log::info!(
+            "Downloading object (with progress) bucket={} key={} -> {:?}",
+            bucket,
+            key,
+            dest
+        );
+        let on_progress = &on_progress;
+        self.run_with_retry("get_object", move |client| {
+            let dest = dest.to_path_buf();
+            let key = key.to_string();
+            async move {
+                let log_key = key.clone();
+                let resp = client
+                    .get_object()
+                    .bucket(bucket)
+                    .key(key)
+                    .send()
+                    .await
+                    .map_err(|e| {
+                        log::error!(
+                            "Failed to download object bucket={} key={}: {}",
+                            bucket,
+                            log_key,
+                            e
+                        );
+                        CoreError::S3(e.to_string())
+                    })?;
+
+                let total = resp.content_length().map(|v| v as u64);
+
+                let mut file = tokio::fs::File::create(&dest)
+                    .await
+                    .map_err(|e| CoreError::Io(format!("创建文件失败 {:?}: {}", dest, e)))?;
+
+                let mut reader = resp.body.into_async_read();
+                let mut buf = vec![0u8; 64 * 1024];
+                let mut written: u64 = 0;
+                // 初始进度（0），确保 UI 立即进入下载态
+                on_progress(0, total);
+                loop {
+                    let n = tokio::io::AsyncReadExt::read(&mut reader, &mut buf)
+                        .await
+                        .map_err(|e| CoreError::Io(format!("读取响应失败: {}", e)))?;
+                    if n == 0 {
+                        break;
+                    }
+                    file.write_all(&buf[..n])
+                        .await
+                        .map_err(|e| CoreError::Io(format!("写入文件失败 {:?}: {}", dest, e)))?;
+                    written += n as u64;
+                    on_progress(written, total);
+                }
+                file.flush()
+                    .await
+                    .map_err(|e| CoreError::Io(format!("刷新文件失败 {:?}: {}", dest, e)))?;
+
+                log::info!(
+                    "Object downloaded successfully bucket={} key={} size={}",
+                    bucket,
+                    log_key,
+                    written
+                );
+                Ok(written)
+            }
+        })
+        .await
+    }
+
     /// 创建一个空对象以模拟“文件夹”（S3 无真实目录）。
     pub async fn create_folder(&self, bucket: &str, key: &str) -> Result<(), CoreError> {
         log::info!("Creating folder marker bucket={} key={}", bucket, key);

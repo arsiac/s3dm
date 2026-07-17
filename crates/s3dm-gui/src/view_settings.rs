@@ -6,8 +6,8 @@
 use iced::{
     Alignment, Border, Element, Length, Padding,
     widget::{
-        Theme, button, column, container, pick_list, row, rule, svg, svg::Handle as SvgHandle,
-        text, text_input,
+        Theme, button, column, container, pick_list, progress_bar, row, rule, svg,
+        svg::Handle as SvgHandle, text, text_input,
     },
 };
 use rust_i18n::t;
@@ -163,14 +163,59 @@ pub fn view_status_bar(app: &App) -> Element<'_, Message> {
 
     // 加载中指示器：紧凑地显示在状态栏右侧，不占用额外空间
     if app.is_loading {
-        bar = bar.push(
-            container(
-                text(t!("loading").to_string())
+        // 下载中：优先展示带文件名的进度条；否则回退到通用"加载中..."
+        let indicator: Element<Message> = match (&app.downloading_file, &app.download_progress) {
+            // 已知总大小：显示进度条 + 已下载/总大小
+            (Some(name), Some((downloaded, Some(total)))) if *total > 0 => {
+                let ratio = (*downloaded as f32 / *total as f32).clamp(0.0, 1.0);
+                row![
+                    text(t!("downloading_progress", name = name.as_str()).to_string())
+                        .size(11)
+                        .color(p.text_secondary),
+                    progress_bar(0.0..=1.0, ratio)
+                        .length(Length::Fixed(120.0))
+                        .girth(Length::Fixed(8.0)),
+                    text(format!(
+                        "{}/{}",
+                        constants::format_size(*downloaded as i64),
+                        constants::format_size(*total as i64)
+                    ))
                     .size(11)
                     .color(p.text_secondary),
-            )
-            .width(Length::Fill)
-            .align_x(Alignment::End),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center)
+                .into()
+            }
+            // 总大小未知：不确定态文字，仅显示已下载字节数
+            (Some(name), Some((downloaded, None))) => {
+                text(
+                    t!(
+                        "downloading_unknown",
+                        name = name.as_str(),
+                        size = constants::format_size(*downloaded as i64)
+                    )
+                    .to_string(),
+                )
+                .size(11)
+                .color(p.text_secondary)
+                .into()
+            }
+            // 下载中但尚无进度数据：显示文件名
+            (Some(name), _) => text(t!("downloading_status", name = name.as_str()).to_string())
+                .size(11)
+                .color(p.text_secondary)
+                .into(),
+            // 非下载类加载
+            (None, _) => text(t!("loading").to_string())
+                .size(11)
+                .color(p.text_secondary)
+                .into(),
+        };
+        bar = bar.push(
+            container(indicator)
+                .width(Length::Fill)
+                .align_x(Alignment::End),
         );
     }
 

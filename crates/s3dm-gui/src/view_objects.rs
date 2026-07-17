@@ -206,6 +206,24 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
             continue;
         }
 
+        // 下载按钮：正在下载的对象显示 cloud-link 图标并禁用（不设置 on_press）
+        let is_downloading = app.downloading_key.as_deref() == Some(obj.key.as_str());
+        let download_icon: &[u8] = if is_downloading {
+            include_bytes!("../icons/cloud-link-16-filled.svg")
+        } else {
+            include_bytes!("../icons/cloud-arrow-down-16-filled.svg")
+        };
+        let mut download_btn = button(
+            svg(SvgHandle::from_memory(download_icon.to_vec()))
+                .width(Length::Fixed(16.0))
+                .height(Length::Fixed(16.0))
+                .style(svg_style),
+        )
+        .style(icon_btn_style);
+        if !is_downloading {
+            download_btn = download_btn.on_press(Message::DownloadObject(obj.key.clone()));
+        }
+
         let row_content = row![
             row![
                 svg(SvgHandle::from_memory(
@@ -231,16 +249,7 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
             )
             .size(12)
             .color(p.text_secondary),
-            button(
-                svg(SvgHandle::from_memory(
-                    include_bytes!("../icons/cloud-arrow-down-16-filled.svg").to_vec()
-                ))
-                .width(Length::Fixed(16.0))
-                .height(Length::Fixed(16.0))
-                .style(svg_style),
-            )
-            .style(icon_btn_style)
-            .on_press(Message::DownloadObject(obj.key.clone())),
+            download_btn,
             button(
                 svg(SvgHandle::from_memory(
                     include_bytes!("../icons/delete-16-filled.svg").to_vec()

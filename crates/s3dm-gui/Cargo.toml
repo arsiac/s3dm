@@ -7,6 +7,7 @@ edition = "2024"
 iced = { workspace = true, features = ["svg"] }
 rfd = "0.15"
 dirs = { workspace = true }
+tokio = { workspace = true }
 s3dm-core = { workspace = true }
 s3dm-config = { workspace = true }
 chrono = { workspace = true }

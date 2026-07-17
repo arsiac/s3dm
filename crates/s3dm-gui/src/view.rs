@@ -91,6 +91,62 @@ pub fn view(app: &App) -> Element<'_, Message> {
         elements.push(error_bar.into());
     }
 
+    // ── 下载成功提示栏 ──
+    if let Some(msg) = &app.success_message {
+        let hover_bg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.15);
+        let icon_btn_style = move |_: &Theme, s: button::Status| -> button::Style {
+            let (bg, border) = match s {
+                button::Status::Hovered | button::Status::Pressed => (
+                    Some(iced::Background::Color(hover_bg)),
+                    Border {
+                        color: hover_bg,
+                        width: 1.0,
+                        radius: 4.0.into(),
+                    },
+                ),
+                _ => (None, Border::default().width(0)),
+            };
+            button::Style {
+                background: bg,
+                border,
+                text_color: iced::Color::WHITE,
+                shadow: iced::Shadow::default(),
+                ..Default::default()
+            }
+        };
+
+        let dismiss = svg(SvgHandle::from_memory(
+            include_bytes!("../icons/dismiss-16-filled.svg").to_vec(),
+        ))
+        .width(Length::Fixed(16.0))
+        .height(Length::Fixed(16.0))
+        .style(|_: &Theme, _: svg::Status| svg::Style {
+            color: Some(iced::Color::WHITE),
+        });
+
+        let success_bar = container(
+            row![
+                text(msg).size(13).color(iced::Color::WHITE),
+                space::horizontal(),
+                button(dismiss)
+                    .style(icon_btn_style)
+                    .on_press(Message::ClearSuccessMessage),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center),
+        )
+        .padding([6, 10])
+        .style(|_: &Theme| container::Style {
+            background: Some(iced::Background::Color(iced::Color::from_rgb(
+                0.18, 0.6, 0.33,
+            ))),
+            text_color: Some(iced::Color::WHITE),
+            ..Default::default()
+        })
+        .width(Length::Fill);
+        elements.push(success_bar.into());
+    }
+
     // ── 主布局 ──
     let side_panel = view_left_panel(app);
     let right_area = view_right_content(app);

@@ -578,20 +578,70 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             }
             log::info!("Downloading object: {} -> {}", key, save_path);
             app.is_loading = true;
+            app.error_message = None;
+            app.success_message = None;
+            app.downloading_file = Some(fname.clone());
+            app.downloading_key = Some(key.clone());
+            app.download_progress = Some((0, None));
             let key_c = key.clone();
-            Task::perform(
-                async move {
-                    let data = s3
-                        .get_object_to_file(&bucket, &key, std::path::Path::new(&save_path))
-                        .await;
-                    (key_c, save_path, data)
+
+            // 下载事件：进度更新 / 最终完成
+            enum DlEvent {
+                Progress { downloaded: u64, total: Option<u64> },
+                Done {
+                    key: String,
+                    save_path: String,
+                    data: Result<u64, s3dm_core::CoreError>,
                 },
-                |(key, save_path, data)| Message::DownloadResult {
+            }
+
+            let stream = iced::stream::channel(64, move |mut sender: iced::futures::channel::mpsc::Sender<DlEvent>| async move {
+                // 进度回调：同步 try_send，通道满时丢弃过密的中间更新
+                let progress_sender = sender.clone();
+                let on_progress = move |downloaded: u64, total: Option<u64>| {
+                    let mut s = progress_sender.clone();
+                    let _ = s.try_send(DlEvent::Progress { downloaded, total });
+                };
+
+                let data = s3
+                    .get_object_to_file_with_progress(
+                        &bucket,
+                        &key,
+                        std::path::Path::new(&save_path),
+                        on_progress,
+                    )
+                    .await;
+
+                use iced::futures::SinkExt;
+                let _ = sender
+                    .send(DlEvent::Done {
+                        key: key_c,
+                        save_path,
+                        data,
+                    })
+                    .await;
+            });
+
+            Task::run(stream, |event| match event {
+                DlEvent::Progress { downloaded, total } => {
+                    Message::DownloadProgress { downloaded, total }
+                }
+                DlEvent::Done {
+                    key,
+                    save_path,
+                    data,
+                } => Message::DownloadResult {
                     key,
                     save_path,
                     data,
                 },
-            )
+            })
+        }
+
+        // ── 下载进度更新 ──
+        Message::DownloadProgress { downloaded, total } => {
+            app.download_progress = Some((downloaded, total));
+            Task::none()
         }
 
         // ── 下载结果 ──
@@ -601,10 +651,27 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             data,
         } => {
             app.is_loading = false;
+            app.downloading_file = None;
+            app.downloading_key = None;
+            app.download_progress = None;
             match data {
                 Ok(bytes) => {
                     log::info!("Download saved to: {} ({} bytes)", save_path, bytes);
-                    Task::none()
+                    app.success_message = Some(
+                        rust_i18n::t!(
+                            "download_completed",
+                            path = save_path,
+                            size = crate::constants::format_size(bytes as i64)
+                        )
+                        .to_string(),
+                    );
+                    // 3 秒后自动清除成功提示
+                    Task::perform(
+                        async {
+                            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                        },
+                        |_| Message::ClearSuccessMessage,
+                    )
                 }
                 Err(e) => {
                     log::error!("Failed to download object: {}", e);
@@ -624,6 +691,12 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         // ── 清除错误 ──
         Message::ClearError => {
             app.error_message = None;
+            Task::none()
+        }
+
+        // ── 清除下载成功提示 ──
+        Message::ClearSuccessMessage => {
+            app.success_message = None;
             Task::none()
         }
 

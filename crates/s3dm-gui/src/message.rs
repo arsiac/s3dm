@@ -65,7 +65,6 @@ pub enum Message {
     UploadObject,
     /// 下载单个对象
     DownloadObject(String),
-
     // ── 异步操作结果 ──
     /// 对象列表加载结果
     ObjectsResult(Result<ObjectListResult, CoreError>),
@@ -76,6 +75,11 @@ pub enum Message {
         key: String,
         save_path: String,
         data: Result<u64, CoreError>,
+    },
+    /// 下载进度更新（已下载字节数，总大小 None 表示未知）
+    DownloadProgress {
+        downloaded: u64,
+        total: Option<u64>,
     },
     /// 上传操作结果
     UploadResult(Result<(), CoreError>),
@@ -89,6 +93,8 @@ pub enum Message {
     DownloadDirChanged(String),
     /// 清除错误提示
     ClearError,
+    /// 清除下载成功提示
+    ClearSuccessMessage,
     /// 切换设置面板显示
     ToggleSettings,
     /// 主题切换

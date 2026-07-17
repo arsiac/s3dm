@@ -43,6 +43,10 @@ load_more: "Load more..."
 
 # Status
 loading: "Loading..."
+downloading_status: "Downloading: %{name}..."
+downloading_progress: "Downloading %{name}"
+downloading_unknown: "Downloading %{name} (%{size}...)"
+download_completed: "Downloaded: %{path} (%{size})"
 unknown: "unknown"
 
 # Errors

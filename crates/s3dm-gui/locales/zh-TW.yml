@@ -43,6 +43,10 @@ load_more: "載入更多..."
 
 # Status
 loading: "載入中..."
+downloading_status: "正在下載: %{name}..."
+downloading_progress: "正在下載 %{name}"
+downloading_unknown: "正在下載 %{name}（已下載 %{size}...）"
+download_completed: "已下載: %{path} (%{size})"
 unknown: "未知"
 
 # Errors

@@ -51,6 +51,14 @@ pub struct App {
     pub connecting_name: Option<String>,
     /// 文件下载目录路径
     pub download_dir: String,
+    /// 当前正在下载的文件名（None 表示未在下载，用于状态栏提示）
+    pub downloading_file: Option<String>,
+    /// 当前正在下载的对象 Key（用于在列表中标记对应行的下载按钮）
+    pub downloading_key: Option<String>,
+    /// 当前下载进度（已下载字节数，总大小 None 表示未知），None 表示无进行中的下载
+    pub download_progress: Option<(u64, Option<u64>)>,
+    /// 下载成功提示信息（None 表示无提示，用于顶部绿色通知栏）
+    pub success_message: Option<String>,
     /// 待删除确认的连接 ID
     pub pending_delete: Option<String>,
     /// 待删除确认的对象 Key
@@ -138,6 +146,10 @@ pub fn boot() -> (App, Task<Message>) {
         download_dir: dirs::download_dir()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default(),
+        downloading_file: None,
+        downloading_key: None,
+        download_progress: None,
+        success_message: None,
         pending_delete: None,
         pending_delete_object: None,
         pending_delete_prefix: None,
