@@ -26,9 +26,45 @@ sys-locale = "0.3"
 name = "s3dm"
 version = "0.1.0"
 edition = "2024"
+description = "S3 Desktop Manager - a GUI client to manage S3 buckets and objects"
+license = "MIT"
+authors = ["arsiac"]
+readme = false
 
 [dependencies]
 iced = { workspace = true }
 s3dm-gui = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
+
+# ---------------------------------------------------------------------------
+# Packaging: cargo-deb (`cargo deb`)
+# ---------------------------------------------------------------------------
+[package.metadata.deb]
+maintainer = "arsiac"
+copyright = "2025, arsiac"
+extended-description = """\
+S3 Desktop Manager (s3dm) is a cross-platform graphical client for browsing \
+and managing S3-compatible object storage: buckets, folders and objects, \
+with upload/download support."""
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/s3dm", "usr/bin/", "755"],
+    ["packaging/s3dm.desktop", "usr/share/applications/", "644"],
+    ["crates/s3dm-gui/icons/app/icon-256.png", "usr/share/icons/hicolor/256x256/apps/s3dm.png", "644"],
+    ["crates/s3dm-gui/icons/app/icon-512.png", "usr/share/icons/hicolor/512x512/apps/s3dm.png", "644"],
+]
+
+# ---------------------------------------------------------------------------
+# Packaging: cargo-generate-rpm (`cargo generate-rpm`)
+# ---------------------------------------------------------------------------
+[package.metadata.generate-rpm]
+summary = "S3 Desktop Manager - a GUI client to manage S3 buckets and objects"
+license = "MIT"
+assets = [
+    { source = "target/release/s3dm", dest = "/usr/bin/s3dm", mode = "755" },
+    { source = "packaging/s3dm.desktop", dest = "/usr/share/applications/s3dm.desktop", mode = "644" },
+    { source = "crates/s3dm-gui/icons/app/icon-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/s3dm.png", mode = "644" },
+    { source = "crates/s3dm-gui/icons/app/icon-512.png", dest = "/usr/share/icons/hicolor/512x512/apps/s3dm.png", mode = "644" },
+]

@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  BINARY_NAME: s3dm
+
+jobs:
+  ci:
+    name: ${{ matrix.artifact_os }}-${{ matrix.artifact_arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_os: linux
+            artifact_arch: amd64
+            ext: ""
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            artifact_os: linux
+            artifact_arch: arm64
+            ext: ""
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            artifact_os: macos
+            artifact_arch: amd64
+            ext: ""
+          - os: macos-15
+            target: aarch64-apple-darwin
+            artifact_os: macos
+            artifact_arch: aarch64
+            ext: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_os: windows
+            artifact_arch: amd64
+            ext: ".exe"
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            artifact_os: windows
+            artifact_arch: arm64
+            ext: ".exe"
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Linux GUI dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libfontconfig1-dev \
+            pkg-config
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Run tests
+        run: cargo test --target ${{ matrix.target }}
+
+      - name: Run build
+        run: cargo build --release --target ${{ matrix.target }}
