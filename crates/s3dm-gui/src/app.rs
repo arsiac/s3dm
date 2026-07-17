@@ -85,7 +85,7 @@ impl App {
         self.continuation_token = None;
         self.is_loading = true;
         Task::perform(
-            async move { s3.list_objects(&bucket, &prefix, "/", 200, None) },
+            async move { s3.list_objects(&bucket, &prefix, "/", 200, None).await },
             Message::ObjectsResult,
         )
     }

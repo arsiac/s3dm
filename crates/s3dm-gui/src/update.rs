@@ -205,6 +205,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                         &form.secret_access_key,
                         form.force_path_style,
                     )
+                    .await
                 },
                 Message::ConnectionTestResult,
             )
@@ -282,7 +283,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             };
             app.is_loading = true;
             Task::perform(
-                async move { s3.list_objects(&bucket, &prefix, "/", 200, token.as_deref()) },
+                async move { s3.list_objects(&bucket, &prefix, "/", 200, token.as_deref()).await },
                 Message::ObjectsResult,
             )
         }
@@ -343,7 +344,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             };
             app.pending_delete_object = None;
             Task::perform(
-                async move { s3.delete_object(&bucket, &key) },
+                async move { s3.delete_object(&bucket, &key).await },
                 Message::DeleteResult,
             )
         }
@@ -392,7 +393,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             log::info!("Creating folder: {}", key);
             app.is_loading = true;
             Task::perform(
-                async move { s3.put_object(&bucket, &key, vec![]) },
+                async move { s3.put_object(&bucket, &key, vec![]).await },
                 Message::UploadResult,
             )
         }
@@ -418,7 +419,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             app.pending_delete_prefix = None;
             app.is_loading = true;
             Task::perform(
-                async move { s3.delete_prefix(&bucket, &prefix) },
+                async move { s3.delete_prefix(&bucket, &prefix).await },
                 Message::DeleteResult,
             )
         }
@@ -480,7 +481,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             Task::perform(
                 async move {
                     match std::fs::read(&path) {
-                        Ok(data) => s3.put_object(&bucket, &key, data),
+                        Ok(data) => s3.put_object(&bucket, &key, data).await,
                         Err(e) => {
                             log::error!("Failed to read file: {:?}: {}", path, e);
                             Err(s3dm_core::CoreError::S3(
@@ -530,7 +531,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             let key_c = key.clone();
             Task::perform(
                 async move {
-                    let data = s3.get_object(&bucket, &key);
+                    let data = s3.get_object(&bucket, &key).await;
                     (key_c, save_path, data)
                 },
                 |(key, save_path, data)| Message::DownloadResult {
@@ -623,7 +624,7 @@ fn connect_to(app: &mut App, conn_id: String) -> Task<Message> {
             async move {
                 log::info!("Connecting to S3 endpoint={} region={}", endpoint, region);
                 let manager = s3dm_core::S3Manager::new(&endpoint, &region, &ak, &sk, fps);
-                let buckets = manager.list_buckets();
+                let buckets = manager.list_buckets().await;
                 (manager, buckets)
             },
             |(manager, buckets)| Message::Connected {

@@ -1,4 +1,3 @@
-use std::future::Future;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -52,7 +51,6 @@ pub enum CoreError {
 
 #[derive(Debug)]
 pub struct S3Manager {
-    runtime: Arc<tokio::runtime::Runtime>,
     inner: Arc<S3Inner>,
 }
 
@@ -62,63 +60,48 @@ struct S3Inner {
     config: aws_sdk_s3::config::Config,
 }
 
-// Manual Clone: config is Clone, client is Clone (Arc clone), runtime is Arc
+// Manual Clone: config is Clone, client is Clone (Arc clone)
 impl Clone for S3Manager {
     fn clone(&self) -> Self {
         Self {
-            runtime: self.runtime.clone(),
             inner: self.inner.clone(),
         }
     }
 }
 
 impl S3Manager {
-    fn run<F, Fut, T>(&self, f: F) -> Result<T, CoreError>
+    async fn run_with_retry<F, Fut, T>(&self, op_name: &'static str, mut f: F) -> Result<T, CoreError>
     where
-        F: FnOnce(aws_sdk_s3::Client) -> Fut,
-        Fut: Future<Output = Result<T, CoreError>>,
-    {
-        let client = self.inner.client.lock().expect("lock poisoned").clone();
-        self.runtime.block_on(f(client))
-    }
-
-    fn run_with_retry<F, Fut, T>(&self, op_name: &'static str, f: F) -> Result<T, CoreError>
-    where
-        F: Fn(aws_sdk_s3::Client) -> Fut,
+        F: FnMut(aws_sdk_s3::Client) -> Fut,
         Fut: Future<Output = Result<T, CoreError>>,
     {
         let max_attempts = 3;
-        self.runtime.block_on(async {
-            let mut last_err = None;
-            for attempt in 1..=max_attempts {
-                let client = {
-                    let guard = self.inner.client.lock().expect("lock poisoned");
-                    guard.clone()
-                };
-                match f(client).await {
-                    Ok(result) => return Ok(result),
-                    Err(e) => {
-                        let is_dispatch = e.to_string().contains("dispatch failure");
-                        if is_dispatch && attempt < max_attempts {
-                            log::warn!(
-                                "{} failed on attempt {}/{}: dispatch failure, retrying...",
-                                op_name,
-                                attempt,
-                                max_attempts
-                            );
-                            last_err = Some(e);
-                            let new_client =
-                                aws_sdk_s3::Client::from_conf(self.inner.config.clone());
-                            *self.inner.client.lock().expect("lock poisoned") = new_client;
-                            tokio::time::sleep(Duration::from_millis(500 * attempt)).await;
-                        } else {
-                            return Err(e);
-                        }
+        let mut last_err = None;
+        for attempt in 1..=max_attempts {
+            let client = self.inner.client.lock().expect("lock poisoned").clone();
+            match f(client).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    let is_dispatch = e.to_string().contains("dispatch failure");
+                    if is_dispatch && attempt < max_attempts {
+                        log::warn!(
+                            "{} failed on attempt {}/{}: dispatch failure, retrying...",
+                            op_name,
+                            attempt,
+                            max_attempts
+                        );
+                        last_err = Some(e);
+                        let new_client =
+                            aws_sdk_s3::Client::from_conf(self.inner.config.clone());
+                        *self.inner.client.lock().expect("lock poisoned") = new_client;
+                        tokio::time::sleep(Duration::from_millis(500 * attempt)).await;
+                    } else {
+                        return Err(e);
                     }
                 }
             }
-            Err(last_err.unwrap())
-        })
+        }
+        Err(last_err.unwrap())
     }
 
     pub fn new(
@@ -134,33 +117,28 @@ impl S3Manager {
             region,
             force_path_style
         );
-        let runtime = Arc::new(tokio::runtime::Runtime::new().unwrap());
         let creds = Credentials::new(access_key_id, secret_access_key, None, None, "s3dm");
 
-        let (client, config) = runtime.block_on(async {
-            let config = aws_sdk_s3::config::Config::builder()
-                .behavior_version(BehaviorVersion::latest())
-                .region(Region::new(region.to_string()))
-                .endpoint_url(endpoint)
-                .credentials_provider(creds)
-                .force_path_style(force_path_style)
-                .retry_config(RetryConfig::standard().with_max_attempts(3))
-                .timeout_config(
-                    TimeoutConfig::builder()
-                        .connect_timeout(Duration::from_secs(10))
-                        .operation_attempt_timeout(Duration::from_secs(10))
-                        .operation_timeout(Duration::from_secs(10))
-                        .read_timeout(Duration::from_secs(10))
-                        .build(),
-                )
-                .build();
-            let client = aws_sdk_s3::Client::from_conf(config.clone());
-            (client, config)
-        });
+        let config = aws_sdk_s3::config::Config::builder()
+            .behavior_version(BehaviorVersion::latest())
+            .region(Region::new(region.to_string()))
+            .endpoint_url(endpoint)
+            .credentials_provider(creds)
+            .force_path_style(force_path_style)
+            .retry_config(RetryConfig::standard().with_max_attempts(3))
+            .timeout_config(
+                TimeoutConfig::builder()
+                    .connect_timeout(Duration::from_secs(10))
+                    .operation_attempt_timeout(Duration::from_secs(10))
+                    .operation_timeout(Duration::from_secs(10))
+                    .read_timeout(Duration::from_secs(10))
+                    .build(),
+            )
+            .build();
+        let client = aws_sdk_s3::Client::from_conf(config.clone());
 
         log::info!("S3 client created successfully endpoint={}", endpoint);
         Self {
-            runtime,
             inner: Arc::new(S3Inner {
                 client: Mutex::new(client),
                 config,
@@ -172,7 +150,7 @@ impl S3Manager {
     ///
     /// 创建临时客户端并调用 `list_buckets`，用于在不建立持久连接的情况下
     /// 验证端点、凭据与网络连通性。成功返回 `Ok(())`，失败返回 `Err`。
-    pub fn test_connection(
+    pub async fn test_connection(
         endpoint: &str,
         region: &str,
         access_key_id: &str,
@@ -187,7 +165,7 @@ impl S3Manager {
             secret_access_key,
             force_path_style,
         );
-        match manager.list_buckets() {
+        match manager.list_buckets().await {
             Ok(_) => {
                 log::info!("Connection test succeeded");
                 Ok(())
@@ -199,9 +177,9 @@ impl S3Manager {
         }
     }
 
-    pub fn list_buckets(&self) -> Result<Vec<S3Bucket>, CoreError> {
+    pub async fn list_buckets(&self) -> Result<Vec<S3Bucket>, CoreError> {
         log::info!("Listing all buckets");
-        self.run_with_retry("list_buckets", |client| async move {
+        self.run_with_retry("list_buckets", move |client| async move {
             let resp = client.list_buckets().send().await.map_err(|e| {
                 log::error!("Failed to list buckets: {}", e);
                 CoreError::S3(e.to_string())
@@ -223,9 +201,10 @@ impl S3Manager {
             log::info!("Successfully listed {} buckets", buckets.len());
             Ok(buckets)
         })
+        .await
     }
 
-    pub fn list_objects(
+    pub async fn list_objects(
         &self,
         bucket: &str,
         prefix: &str,
@@ -240,7 +219,7 @@ impl S3Manager {
             delimiter,
             max_keys
         );
-        self.run_with_retry("list_objects", |client| async move {
+        self.run_with_retry("list_objects", move |client| async move {
             let mut req = client
                 .list_objects_v2()
                 .bucket(bucket)
@@ -308,11 +287,12 @@ impl S3Manager {
                 continuation_token,
             })
         })
+        .await
     }
 
-    pub fn delete_object(&self, bucket: &str, key: &str) -> Result<(), CoreError> {
+    pub async fn delete_object(&self, bucket: &str, key: &str) -> Result<(), CoreError> {
         log::info!("Deleting object bucket={} key={}", bucket, key);
-        self.run_with_retry("delete_object", |client| async move {
+        self.run_with_retry("delete_object", move |client| async move {
             client
                 .delete_object()
                 .bucket(bucket)
@@ -331,15 +311,16 @@ impl S3Manager {
             log::debug!("Object deleted successfully bucket={} key={}", bucket, key);
             Ok(())
         })
+        .await
     }
 
-    pub fn delete_prefix(&self, bucket: &str, prefix: &str) -> Result<(), CoreError> {
+    pub async fn delete_prefix(&self, bucket: &str, prefix: &str) -> Result<(), CoreError> {
         log::info!(
             "Deleting objects under prefix bucket={} prefix={}",
             bucket,
             prefix
         );
-        self.run_with_retry("delete_prefix", |client| async move {
+        self.run_with_retry("delete_prefix", move |client| async move {
             let mut keys: Vec<String> = Vec::new();
             let mut token: Option<String> = None;
 
@@ -396,11 +377,12 @@ impl S3Manager {
             log::info!("Successfully deleted all objects under prefix={}", prefix);
             Ok(())
         })
+        .await
     }
 
-    pub fn get_object(&self, bucket: &str, key: &str) -> Result<Vec<u8>, CoreError> {
+    pub async fn get_object(&self, bucket: &str, key: &str) -> Result<Vec<u8>, CoreError> {
         log::info!("Downloading object bucket={} key={}", bucket, key);
-        self.run_with_retry("get_object", |client| async move {
+        self.run_with_retry("get_object", move |client| async move {
             let resp = client
                 .get_object()
                 .bucket(bucket)
@@ -441,40 +423,45 @@ impl S3Manager {
             );
             Ok(data)
         })
+        .await
     }
 
-    pub fn put_object(&self, bucket: &str, key: &str, data: Vec<u8>) -> Result<(), CoreError> {
+    pub async fn put_object(&self, bucket: &str, key: &str, data: Vec<u8>) -> Result<(), CoreError> {
         log::info!(
             "Uploading object bucket={} key={} size={}",
             bucket,
             key,
             data.len()
         );
-        self.run(move |client| async move {
-            client
-                .put_object()
-                .bucket(bucket)
-                .key(key)
-                .body(ByteStream::from(data))
-                .send()
-                .await
-                .map_err(|e| {
-                    log::error!(
-                        "Failed to upload object bucket={} key={}: {}",
-                        bucket,
-                        key,
-                        e
-                    );
-                    CoreError::S3(e.to_string())
-                })?;
-            log::info!("Object uploaded successfully bucket={} key={}", bucket, key);
-            Ok(())
+        self.run_with_retry("put_object", move |client| {
+            let data = data.clone();
+            async move {
+                client
+                    .put_object()
+                    .bucket(bucket)
+                    .key(key)
+                    .body(ByteStream::from(data))
+                    .send()
+                    .await
+                    .map_err(|e| {
+                        log::error!(
+                            "Failed to upload object bucket={} key={}: {}",
+                            bucket,
+                            key,
+                            e
+                        );
+                        CoreError::S3(e.to_string())
+                    })?;
+                log::info!("Object uploaded successfully bucket={} key={}", bucket, key);
+                Ok(())
+            }
         })
+        .await
     }
 
-    pub fn head_object(&self, bucket: &str, key: &str) -> Result<S3Object, CoreError> {
+    pub async fn head_object(&self, bucket: &str, key: &str) -> Result<S3Object, CoreError> {
         log::debug!("Querying object metadata bucket={} key={}", bucket, key);
-        self.run_with_retry("head_object", |client| async move {
+        self.run_with_retry("head_object", move |client| async move {
             let resp = client
                 .head_object()
                 .bucket(bucket)
@@ -507,5 +494,6 @@ impl S3Manager {
                 etag: resp.e_tag().map(|s| s.to_string()),
             })
         })
+        .await
     }
 }
