@@ -124,11 +124,9 @@ pub fn view_buckets(app: &App) -> Element<'_, Message> {
             .on_press(Message::BucketSelected(bucket.name.clone()))
             .style(move |_: &Theme, s: button::Status| {
                 let bg = match s {
-                    button::Status::Hovered | button::Status::Pressed => {
-                        Some(iced::Background::Color(iced::Color::from_rgba(
-                            1.0, 1.0, 1.0, 0.08,
-                        )))
-                    }
+                    button::Status::Hovered | button::Status::Pressed => Some(
+                        iced::Background::Color(iced::Color::from_rgba(1.0, 1.0, 1.0, 0.08)),
+                    ),
                     _ => bucket_bg,
                 };
                 button::Style {

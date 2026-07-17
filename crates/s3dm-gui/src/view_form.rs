@@ -116,11 +116,13 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
             button(text(t!("test_connection").to_string()))
                 .style(btn_style)
                 .on_press(Message::ConnectionFormTest),
-            container(row![
-                button(text(t!("save").to_string())).on_press(Message::ConnectionFormSave),
-                button(text(t!("cancel").to_string())).on_press(Message::ConnectionFormCancel),
-            ]
-            .spacing(10))
+            container(
+                row![
+                    button(text(t!("save").to_string())).on_press(Message::ConnectionFormSave),
+                    button(text(t!("cancel").to_string())).on_press(Message::ConnectionFormCancel),
+                ]
+                .spacing(10)
+            )
             .width(Length::Fill)
             .align_x(Alignment::End),
         ]

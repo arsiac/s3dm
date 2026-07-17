@@ -9,8 +9,7 @@
 use iced::{
     Alignment, Border, Element, Length,
     widget::{
-        Theme, button, column, container, row, rule, space, svg,
-        svg::Handle as SvgHandle, text,
+        Theme, button, column, container, row, rule, space, svg, svg::Handle as SvgHandle, text,
     },
 };
 use rust_i18n::t;
@@ -73,7 +72,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .size(13)
                     .color(iced::Color::WHITE),
                 space::horizontal(),
-                button(dismiss).style(icon_btn_style).on_press(Message::ClearError),
+                button(dismiss)
+                    .style(icon_btn_style)
+                    .on_press(Message::ClearError),
             ]
             .spacing(10)
             .align_y(Alignment::Center),

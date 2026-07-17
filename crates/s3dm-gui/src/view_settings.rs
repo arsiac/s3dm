@@ -164,9 +164,13 @@ pub fn view_status_bar(app: &App) -> Element<'_, Message> {
     // 加载中指示器：紧凑地显示在状态栏右侧，不占用额外空间
     if app.is_loading {
         bar = bar.push(
-            container(text(t!("loading").to_string()).size(11).color(p.text_secondary))
-                .width(Length::Fill)
-                .align_x(Alignment::End),
+            container(
+                text(t!("loading").to_string())
+                    .size(11)
+                    .color(p.text_secondary),
+            )
+            .width(Length::Fill)
+            .align_x(Alignment::End),
         );
     }
 

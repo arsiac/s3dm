@@ -27,6 +27,7 @@ rust_i18n::i18n!("locales");
 pub mod app;
 pub mod connection;
 pub mod constants;
+pub mod icon;
 pub mod message;
 pub mod update;
 pub mod view;
