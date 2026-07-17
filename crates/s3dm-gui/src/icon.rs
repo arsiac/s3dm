@@ -10,3 +10,55 @@
 
 /// 应用窗口图标（256×256 PNG），用于运行期窗口与任务栏显示。
 pub const WINDOW_ICON: &[u8] = include_bytes!("../icons/app/icon-256.png");
+
+/// 文件类型图标（16×16 填充 SVG），用于对象浏览器中按扩展名标记文件。
+pub const FILE_TEXT: &[u8] = include_bytes!("../icons/document-bullet-list-16-filled.svg");
+pub const FILE_CODE: &[u8] = include_bytes!("../icons/document-code-16-filled.svg");
+pub const FILE_IMAGE: &[u8] = include_bytes!("../icons/image-16-filled.svg");
+pub const FILE_ARCHIVE: &[u8] = include_bytes!("../icons/folder-zip-16-filled.svg");
+pub const FILE_DEFAULT: &[u8] = include_bytes!("../icons/document-16-filled.svg");
+
+/// 根据文件名返回对应的文件类型图标字节。
+///
+/// 映射规则：
+/// - 文本：`txt`, `log`
+/// - 代码/配置/文档：`json`, `yaml`, `yml`, `toml`, `py`, `rs`, `c`, `h`, `java`, `js`, `ts`, `md` 等
+/// - 图片：`png`, `jpg`, `jpeg`, `gif`, `svg`, `webp`, `bmp` 等
+/// - 压缩：`zip`, `tar.gz`, `tar.xz`, `tgz`, `rar`, `7z` 等
+/// - 其余回退到 `FILE_DEFAULT`
+pub fn file_icon(name: &str) -> &'static [u8] {
+    let lower = name.to_ascii_lowercase();
+
+    // 压缩包（含多段扩展名，需优先 ends_with 判断）
+    if lower.ends_with(".tar.gz")
+        || lower.ends_with(".tar.xz")
+        || lower.ends_with(".tar.bz2")
+        || lower.ends_with(".tar.zst")
+        || lower.ends_with(".tgz")
+        || matches!(
+            extension(&lower).as_deref(),
+            Some("zip" | "rar" | "7z" | "gz" | "xz" | "bz2" | "zst")
+        )
+    {
+        return FILE_ARCHIVE;
+    }
+
+    match extension(&lower).as_deref() {
+        Some("txt" | "log") => FILE_TEXT,
+        Some(
+            "json" | "yaml" | "yml" | "toml" | "py" | "rs" | "c" | "h" | "hpp" | "cpp" | "cc"
+            | "java" | "js" | "ts" | "tsx" | "jsx" | "go" | "rb" | "php" | "sh" | "bash" | "md"
+            | "html" | "css" | "xml" | "csv" | "ini" | "cfg" | "conf",
+        ) => FILE_CODE,
+        Some("png" | "jpg" | "jpeg" | "gif" | "svg" | "webp" | "bmp" | "ico" | "tiff" | "heic") => {
+            FILE_IMAGE
+        }
+        _ => FILE_DEFAULT,
+    }
+}
+
+/// 提取文件名的小写扩展名（不含点），无扩展名返回 `None`。
+fn extension(name: &str) -> Option<String> {
+    let base = name.rsplit('/').next().unwrap_or(name);
+    base.rsplit('.').next().map(|s| s.to_string())
+}

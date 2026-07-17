@@ -18,6 +18,7 @@ use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
+use crate::icon;
 use crate::message::Message;
 
 /// 渲染对象/文件浏览器
@@ -226,12 +227,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
 
         let row_content = row![
             row![
-                svg(SvgHandle::from_memory(
-                    include_bytes!("../icons/document-16-filled.svg").to_vec()
-                ))
-                .width(Length::Fixed(14.0))
-                .height(Length::Fixed(14.0))
-                .style(svg_style),
+                svg(SvgHandle::from_memory(icon::file_icon(name).to_vec()))
+                    .width(Length::Fixed(14.0))
+                    .height(Length::Fixed(14.0))
+                    .style(svg_style),
                 text(name).size(14),
             ]
             .spacing(4)
