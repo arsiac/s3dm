@@ -15,6 +15,8 @@ pub const WINDOW_ICON: &[u8] = include_bytes!("../icons/app/icon-256.png");
 pub const FILE_TEXT: &[u8] = include_bytes!("../icons/document-bullet-list-16-filled.svg");
 pub const FILE_CODE: &[u8] = include_bytes!("../icons/document-code-16-filled.svg");
 pub const FILE_IMAGE: &[u8] = include_bytes!("../icons/image-16-filled.svg");
+pub const FILE_AUDIO: &[u8] = include_bytes!("../icons/music-note-2-16-filled.svg");
+pub const FILE_VIDEO: &[u8] = include_bytes!("../icons/video-16-filled.svg");
 pub const FILE_ARCHIVE: &[u8] = include_bytes!("../icons/folder-zip-16-filled.svg");
 pub const FILE_DEFAULT: &[u8] = include_bytes!("../icons/document-16-filled.svg");
 
@@ -38,6 +40,8 @@ pub const ICON_CLOUD_DOWNLOAD: &[u8] = include_bytes!("../icons/cloud-arrow-down
 /// - 文本：`txt`, `log`
 /// - 代码/配置/文档：`json`, `yaml`, `yml`, `toml`, `py`, `rs`, `c`, `h`, `java`, `js`, `ts`, `md` 等
 /// - 图片：`png`, `jpg`, `jpeg`, `gif`, `svg`, `webp`, `bmp` 等
+/// - 音频：`mp3`, `wav`, `flac`, `aac`, `ogg`, `m4a` 等
+/// - 视频：`mp4`, `mkv`, `avi`, `mov`, `webm`, `flv` 等
 /// - 压缩：`zip`, `tar.gz`, `tar.xz`, `tgz`, `rar`, `7z` 等
 /// - 其余回退到 `FILE_DEFAULT`
 pub fn file_icon(name: &str) -> &'static [u8] {
@@ -66,6 +70,10 @@ pub fn file_icon(name: &str) -> &'static [u8] {
         ) => FILE_CODE,
         Some("png" | "jpg" | "jpeg" | "gif" | "svg" | "webp" | "bmp" | "ico" | "tiff" | "heic") => {
             FILE_IMAGE
+        }
+        Some("mp3" | "wav" | "flac" | "aac" | "ogg" | "m4a" | "wma" | "opus") => FILE_AUDIO,
+        Some("mp4" | "mkv" | "avi" | "mov" | "webm" | "flv" | "wmv" | "m4v" | "mpg" | "mpeg") => {
+            FILE_VIDEO
         }
         _ => FILE_DEFAULT,
     }
