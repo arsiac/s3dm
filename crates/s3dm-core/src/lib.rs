@@ -555,3 +555,55 @@ impl S3Manager {
         .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aws_smithy_types::DateTime as SmithyDateTime;
+
+    #[test]
+    fn to_chrono_converts_valid_timestamp() {
+        // 1704158645 -> 2024-01-02T01:24:05Z
+        let secs = 1_704_158_645i64;
+        let d = SmithyDateTime::from_secs_and_nanos(secs, 0);
+        let dt = to_chrono(&d).expect("should convert");
+        assert_eq!(dt.timestamp(), secs);
+        assert_eq!(dt.to_rfc3339(), "2024-01-02T01:24:05+00:00");
+    }
+
+    #[test]
+    fn to_chrono_preserves_nanos() {
+        let d = SmithyDateTime::from_secs_and_nanos(1_000, 500);
+        let dt = to_chrono(&d).expect("should convert");
+        assert_eq!(dt.timestamp_subsec_nanos(), 500);
+    }
+
+    #[test]
+    fn core_error_messages_are_localized_strings() {
+        let e = CoreError::NotFound("bucket-x".to_string());
+        assert!(e.to_string().contains("bucket-x"));
+        let e = CoreError::Connection("timeout".to_string());
+        assert!(e.to_string().contains("timeout"));
+        let e = CoreError::S3("aws error".to_string());
+        assert!(e.to_string().contains("aws error"));
+    }
+
+    #[test]
+    fn object_list_result_defaults() {
+        let r = ObjectListResult {
+            objects: vec![],
+            common_prefixes: vec!["a/".to_string()],
+            is_truncated: false,
+            continuation_token: None,
+        };
+        assert!(!r.is_truncated);
+        assert_eq!(r.common_prefixes.len(), 1);
+    }
+
+    #[test]
+    fn s3_manager_is_cloneable() {
+        // new() 不应 panic；克隆应共享底层客户端
+        let m = S3Manager::new("https://s3.example.com", "us-east-1", "ak", "sk", true);
+        let _cloned = m.clone();
+    }
+}

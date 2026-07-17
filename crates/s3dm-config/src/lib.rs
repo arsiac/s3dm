@@ -182,3 +182,72 @@ impl Default for ConfigStore {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_config() -> ConnectionConfig {
+        ConnectionConfig::new(
+            "test".into(),
+            "https://s3.example.com".into(),
+            "us-east-1".into(),
+            "AKID".into(),
+            "SECRET".into(),
+            true,
+        )
+    }
+
+    #[test]
+    fn validate_accepts_complete_config() {
+        assert!(sample_config().validate().is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_empty_name() {
+        let mut c = sample_config();
+        c.name = "   ".into();
+        assert!(c.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_empty_endpoint() {
+        let mut c = sample_config();
+        c.endpoint.clear();
+        assert!(c.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_empty_keys() {
+        let mut c = sample_config();
+        c.access_key_id.clear();
+        assert!(c.validate().is_err());
+        let mut c2 = sample_config();
+        c2.secret_access_key.clear();
+        assert!(c2.validate().is_err());
+    }
+
+    #[test]
+    fn store_add_update_delete_roundtrip() {
+        let mut store = ConfigStore {
+            file_path: std::env::temp_dir()
+                .join(format!("s3dm-test-{}.json", uuid::Uuid::new_v4())),
+            connections: vec![],
+        };
+        let cfg = sample_config();
+        let id = cfg.id.clone();
+        store.add(cfg).unwrap();
+        assert_eq!(store.list().len(), 1);
+        assert!(store.get(&id).is_some());
+
+        let mut updated = sample_config();
+        updated.id = id.clone();
+        updated.name = "renamed".into();
+        store.update(updated).unwrap();
+        assert_eq!(store.get(&id).unwrap().name, "renamed");
+
+        store.delete(&id).unwrap();
+        assert!(store.get(&id).is_none());
+        let _ = std::fs::remove_file(&store.file_path);
+    }
+}
