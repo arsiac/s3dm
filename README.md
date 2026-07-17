@@ -47,6 +47,15 @@ cargo generate-rpm
 
 应用图标来源于 [OpenSVG](https://opensvg.dev/icons)。
 
+## 安全说明
+
+连接配置（含 Access Key / Secret Key）以明文 JSON 存储在用户配置目录下：
+
+- Linux / macOS：`~/.config/s3dm/connections.json`
+- Windows：`%APPDATA%\s3dm\connections.json`
+
+保存时文件权限会被限制为仅当前用户可读写（Unix 下为 `0600`）。**请勿将配置文件共享或提交到仓库**，并建议在系统层面做好磁盘加密与访问控制。
+
 ## 许可证
 
 [MIT](./LICENSE)

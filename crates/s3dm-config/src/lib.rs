@@ -128,6 +128,12 @@ impl ConfigStore {
         }
         let content = serde_json::to_string_pretty(&self.connections)?;
         fs::write(&self.file_path, content)?;
+        // 限制配置（含明文凭据）仅当前用户可读写，避免凭据泄露
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&self.file_path, fs::Permissions::from_mode(0o600));
+        }
         log::info!("Config saved, {} connections total", self.connections.len());
         Ok(())
     }
