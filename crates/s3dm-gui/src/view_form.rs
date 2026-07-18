@@ -111,6 +111,12 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
                 field: "force_path_style".into(),
                 value: b.to_string(),
             }),
+        toggler(form.skip_tls_verify)
+            .label(t!("skip_tls_verify_label").to_string())
+            .on_toggle(|b| Message::ConnectionFormChanged {
+                field: "skip_tls_verify".into(),
+                value: b.to_string(),
+            }),
         row![
             button(text(t!("test_connection").to_string()))
                 .style(btn_style)

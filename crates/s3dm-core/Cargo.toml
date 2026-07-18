@@ -5,11 +5,16 @@ edition.workspace = true
 
 [dependencies]
 aws-sdk-s3 = { workspace = true }
+aws-smithy-http-client = { version = "1", default-features = false, features = ["default-client", "rustls-ring"] }
+aws-smithy-runtime-api = "1"
+aws-smithy-types = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+http = "1"
+http-body-util = "0.1"
 tokio = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
 bytes = { workspace = true }
 uuid = { workspace = true }
-aws-smithy-types = { workspace = true }
 log = { workspace = true }

@@ -25,6 +25,8 @@ pub struct ConnectionForm {
     pub secret_access_key: String,
     /// 是否使用路径风格（path-style）寻址
     pub force_path_style: bool,
+    /// 是否跳过 TLS 证书校验（用于自签名证书 / 内网 HTTPS，不安全）
+    pub skip_tls_verify: bool,
 }
 
 impl ConnectionForm {
@@ -39,6 +41,7 @@ impl ConnectionForm {
                 access_key_id: self.access_key_id.clone(),
                 secret_access_key: self.secret_access_key.clone(),
                 force_path_style: self.force_path_style,
+                skip_tls_verify: self.skip_tls_verify,
             },
             None => ConnectionConfig::new(
                 self.name.clone(),
@@ -47,6 +50,7 @@ impl ConnectionForm {
                 self.access_key_id.clone(),
                 self.secret_access_key.clone(),
                 self.force_path_style,
+                self.skip_tls_verify,
             ),
         }
     }
@@ -61,6 +65,7 @@ impl ConnectionForm {
             access_key_id: config.access_key_id.clone(),
             secret_access_key: config.secret_access_key.clone(),
             force_path_style: config.force_path_style,
+            skip_tls_verify: config.skip_tls_verify,
         }
     }
 }

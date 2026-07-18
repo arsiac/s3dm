@@ -13,6 +13,9 @@ pub struct ConnectionConfig {
     pub access_key_id: String,
     pub secret_access_key: String,
     pub force_path_style: bool,
+    /// 是否跳过 TLS 证书校验（用于自签名证书 / 内网 HTTPS，不安全）
+    #[serde(default)]
+    pub skip_tls_verify: bool,
 }
 
 impl ConnectionConfig {
@@ -23,14 +26,16 @@ impl ConnectionConfig {
         access_key_id: String,
         secret_access_key: String,
         force_path_style: bool,
+        skip_tls_verify: bool,
     ) -> Self {
         let id = Uuid::new_v4().to_string();
         log::info!(
-            "Creating connection config id={} name={} endpoint={} force_path_style={}",
+            "Creating connection config id={} name={} endpoint={} force_path_style={} skip_tls_verify={}",
             id,
             name,
             endpoint,
-            force_path_style
+            force_path_style,
+            skip_tls_verify
         );
         Self {
             id,
@@ -40,6 +45,7 @@ impl ConnectionConfig {
             access_key_id,
             secret_access_key,
             force_path_style,
+            skip_tls_verify,
         }
     }
 
@@ -195,6 +201,7 @@ mod tests {
             "AKID".into(),
             "SECRET".into(),
             true,
+            false,
         )
     }
 
@@ -225,6 +232,22 @@ mod tests {
         let mut c2 = sample_config();
         c2.secret_access_key.clear();
         assert!(c2.validate().is_err());
+    }
+
+    #[test]
+    fn deserialize_defaults_skip_tls_verify_for_legacy_config() {
+        // 旧版配置不含 skip_tls_verify 字段，应默认 false（保证向后兼容）
+        let json = r#"[{
+            "id": "abc",
+            "name": "legacy",
+            "endpoint": "https://s3.example.com",
+            "region": "us-east-1",
+            "access_key_id": "AKID",
+            "secret_access_key": "SECRET",
+            "force_path_style": true
+        }]"#;
+        let configs: Vec<ConnectionConfig> = serde_json::from_str(json).unwrap();
+        assert!(!configs[0].skip_tls_verify);
     }
 
     #[test]

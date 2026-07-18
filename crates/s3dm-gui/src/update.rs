@@ -170,6 +170,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 access_key_id: String::new(),
                 secret_access_key: String::new(),
                 force_path_style: true,
+                skip_tls_verify: false,
             });
             app.connection_testing = false;
             app.connection_test_result = None;
@@ -236,6 +237,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                     "access_key_id" => form.access_key_id = value,
                     "secret_access_key" => form.secret_access_key = value,
                     "force_path_style" => form.force_path_style = value == "true",
+                    "skip_tls_verify" => form.skip_tls_verify = value == "true",
                     _ => {}
                 }
             }
@@ -287,6 +289,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                         &form.access_key_id,
                         &form.secret_access_key,
                         form.force_path_style,
+                        form.skip_tls_verify,
                     )
                     .await
                 },
@@ -862,10 +865,11 @@ fn connect_to(app: &mut App, conn_id: String) -> Task<Message> {
         let ak = config.access_key_id;
         let sk = config.secret_access_key;
         let fps = config.force_path_style;
+        let skip = config.skip_tls_verify;
         Task::perform(
             async move {
                 log::info!("Connecting to S3 endpoint={} region={}", endpoint, region);
-                let manager = s3dm_core::S3Manager::new(&endpoint, &region, &ak, &sk, fps);
+                let manager = s3dm_core::S3Manager::new(&endpoint, &region, &ak, &sk, fps, skip);
                 let buckets = manager.list_buckets().await;
                 (manager, buckets)
             },
