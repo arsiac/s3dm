@@ -4900,17 +4900,18 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "s3dm"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "env_logger",
  "iced",
+ "image",
  "log",
  "s3dm-gui",
 ]
 
 [[package]]
 name = "s3dm-config"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "dirs",
  "log",
@@ -4922,7 +4923,7 @@ dependencies = [
 
 [[package]]
 name = "s3dm-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "aws-sdk-s3",
  "aws-smithy-types",
@@ -4937,7 +4938,7 @@ dependencies = [
 
 [[package]]
 name = "s3dm-gui"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "chrono",
  "dirs",
