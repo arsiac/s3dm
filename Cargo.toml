@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/s3dm-config", "crates/s3dm-core", "crates/s3dm-gui"]
 
 [workspace.package]
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 
 [workspace.dependencies]
