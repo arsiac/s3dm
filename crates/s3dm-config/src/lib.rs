@@ -127,6 +127,12 @@ impl ConfigStore {
         Ok(connections)
     }
 
+    /// 将连接配置持久化到磁盘。
+    ///
+    /// 安全说明：AK/SK 以**明文** JSON 写入本地文件，当前仅通过文件权限
+    /// （Unix 下 `0600`，仅当前用户可读写）限制访问，**未加密**。请勿在
+    /// 共享/多用户设备上存储敏感凭据；长期方案可考虑接入系统密钥库
+    /// （keyring）或加密存储。UI 侧已在连接表单向用户提示该风险。
     fn save(&self) -> Result<(), ConfigError> {
         log::debug!("Saving config to: {}", self.file_path.display());
         if let Some(parent) = self.file_path.parent() {

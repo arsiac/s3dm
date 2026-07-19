@@ -105,6 +105,9 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
                 value: v,
             }
         }),
+        text(t!("credentials_plaintext_warning").to_string())
+            .size(12)
+            .color(constants::custom_palette(&app.theme).text_secondary),
         toggler(form.force_path_style)
             .label(t!("force_path_style_label").to_string())
             .on_toggle(|b| Message::ConnectionFormChanged {
