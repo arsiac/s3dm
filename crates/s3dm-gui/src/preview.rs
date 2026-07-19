@@ -2,26 +2,22 @@
 //!
 //! 本模块负责：
 //! - 根据对象 Key 与大小判定预览类型（文本 / 代码 / 图片 / 过大 / 不支持）
-//! - 将代码内容通过 `iced_highlighter` 逐行语法高亮为带颜色的 `Span`
-//! - 渲染预览弹窗（行号 + 高亮代码 / 纯文本 / 图片 / 提示）
+//! - 渲染预览弹窗（只读编辑器高亮代码 / 纯文本 / 图片 / 提示）
 
 use iced::{
     Alignment, Border, Element, Length,
     widget::{
-        Theme, button, column, container, image, image::Handle, row, rule, scrollable, svg,
-        svg::Handle as SvgHandle, text,
+        Theme, button, column, container, image, image::Handle, row, rule, svg,
+        svg::Handle as SvgHandle, text, text_editor,
     },
 };
-use iced_highlighter::{Settings, Stream, Theme as HiTheme};
+use iced_highlighter::Theme as HiTheme;
 use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
 use crate::icon;
 use crate::message::Message;
-
-/// 预览代码/文本使用的 `Span` 类型别名（Link 固定为 `Message`）
-type Span<'a> = iced::widget::text::Span<'a, Message>;
 
 /// 预览内容分类结果
 #[derive(Debug, Clone)]
@@ -144,66 +140,32 @@ fn hi_theme(theme: &Theme) -> HiTheme {
     }
 }
 
-/// 将一行高亮结果转换为带颜色的 `Span` 列表
-fn line_spans(line: &str, stream: &mut Stream, font: iced::Font) -> Vec<Span<'static>> {
-    let mut spans = Vec::new();
-    for (range, highlight) in stream.highlight_line(line) {
-        let text = line.get(range.clone()).unwrap_or("").to_string();
-        if text.is_empty() {
-            continue;
-        }
-        let mut span = Span::new(text);
-        if let Some(color) = highlight.color() {
-            span = span.color(color);
-        }
-        if let Some(f) = highlight.font() {
-            span = span.font(f);
-        } else {
-            span = span.font(font);
-        }
-        spans.push(span.to_static());
-    }
-    // 末尾换行（保留空行高度）
-    spans.push(Span::new("\n").font(font).to_static());
-    spans
-}
+/// 预览弹窗主体可用区域尺寸（像素，用于只读编辑器固定尺寸；弹窗面板固定 860×620）
+const PREVIEW_BODY_W: f32 = 860.0 - 16.0 * 2.0;
+const PREVIEW_BODY_H: f32 = 620.0 - 16.0 * 2.0 - 30.0 - 1.0 - 10.0;
 
-/// 将代码内容渲染为带行号的高亮文本元素列表（每行一个 rich_text）
-fn render_code(content: &str, token: &str, theme: &Theme) -> Element<'static, Message> {
+/// 将代码/文本内容渲染为只读 `text_editor`，支持鼠标选中与复制，并保留语法高亮
+///
+/// 不包裹 `scrollable`：由 `text_editor` 自身内部滚动（iced 0.14 的 text_editor
+/// 不绘制滚动条），避免双层滚动导致的滚动条异常。
+fn render_text_editor<'a>(app: &'a App, token: Option<&str>) -> Element<'a, Message> {
     let font = iced::Font::MONOSPACE;
     let size = 13.0;
-    let p = constants::custom_palette(theme);
-    let line_no_color = p.text_secondary;
-    let hi = hi_theme(theme);
-    let mut stream = Stream::new(&Settings {
-        theme: hi,
-        token: token.to_string(),
-    });
+    let content = app
+        .preview_editor_content
+        .as_ref()
+        .expect("preview_editor_content 应与 Text/Code 预览同步");
 
-    let total_lines = content.lines().count().max(1);
-    let digits = total_lines.to_string().len().max(2);
+    let editor = text_editor(content)
+        .font(font)
+        .size(size)
+        .padding(8)
+        .width(PREVIEW_BODY_W)
+        .height(Length::Fixed(PREVIEW_BODY_H))
+        .highlight(token.unwrap_or("plaintext"), hi_theme(&app.theme))
+        .on_action(Message::PreviewEditorAction);
 
-    let mut elements: Vec<Element<'static, Message>> = Vec::new();
-
-    for (idx, line) in content.lines().enumerate() {
-        let line_no = format!("{:>width$} │ ", idx + 1, width = digits);
-        let line_no_span = Span::new(line_no)
-            .font(font)
-            .color(line_no_color)
-            .to_static();
-
-        let mut spans = vec![line_no_span];
-        spans.extend(line_spans(line, &mut stream, font));
-        stream.commit();
-
-        let rt = iced::widget::rich_text(spans).font(font).size(size).into();
-        elements.push(rt);
-    }
-
-    scrollable(column(elements).spacing(0))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    editor.into()
 }
 
 /// 渲染预览弹窗主体内容
@@ -211,27 +173,13 @@ fn preview_body<'a>(app: &'a App, content: &'a PreviewContent) -> Element<'a, Me
     let p = constants::custom_palette(&app.theme);
     match content {
         PreviewContent::Text(text_content) => {
-            let font = iced::Font::MONOSPACE;
-            let total_lines = text_content.lines().count().max(1);
-            let digits = total_lines.to_string().len().max(2);
-            let mut elements: Vec<Element<'_, Message>> = Vec::new();
-            for (idx, line) in text_content.lines().enumerate() {
-                let line_no = format!("{:>width$} │ ", idx + 1, width = digits);
-                let spans = vec![
-                    Span::new(line_no)
-                        .font(font)
-                        .color(p.text_secondary)
-                        .to_static(),
-                    Span::new(format!("{}\n", line)).font(font).to_static(),
-                ];
-                elements.push(iced::widget::rich_text(spans).font(font).size(13.0).into());
-            }
-            scrollable(column(elements).spacing(0))
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into()
+            let _ = text_content;
+            render_text_editor(app, None)
         }
-        PreviewContent::Code { token, content } => render_code(content, token, &app.theme),
+        PreviewContent::Code { token, content } => {
+            let _ = content;
+            render_text_editor(app, Some(token))
+        }
         PreviewContent::Image(bytes) => container(
             image(Handle::from_bytes(bytes.clone()))
                 .content_fit(iced::ContentFit::Contain)

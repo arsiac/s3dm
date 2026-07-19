@@ -75,6 +75,8 @@ pub struct App {
     pub preview_key: Option<String>,
     /// 是否正在加载预览内容
     pub preview_loading: bool,
+    /// 预览文本/代码只读编辑器内容（用于支持选中与复制）
+    pub preview_editor_content: Option<iced::widget::text_editor::Content<iced::Renderer>>,
     /// 新建文件夹输入框内容
     pub new_folder_input: Option<String>,
     /// 是否显示设置面板
@@ -192,6 +194,7 @@ pub fn boot() -> (App, Task<Message>) {
         preview: None,
         preview_key: None,
         preview_loading: false,
+        preview_editor_content: None,
         new_folder_input: None,
         show_settings: false,
         theme,

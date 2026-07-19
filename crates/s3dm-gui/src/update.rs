@@ -501,13 +501,22 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             match data {
                 Ok(content) => {
                     log::info!("Preview loaded for: {}", key);
-                    app.preview_key = Some(key);
-                    app.preview = Some(content);
+                    app.preview_key = Some(key.clone());
+                    app.preview = Some(content.clone());
+                    app.preview_editor_content = match &content {
+                        crate::preview::PreviewContent::Text(text)
+                        | crate::preview::PreviewContent::Code {
+                            token: _,
+                            content: text,
+                        } => Some(iced::widget::text_editor::Content::with_text(text)),
+                        _ => None,
+                    };
                 }
                 Err(e) => {
                     log::error!("Failed to load preview for {}: {}", key, e);
                     app.preview_key = None;
                     app.preview = None;
+                    app.preview_editor_content = None;
                     app.error_message = Some(
                         rust_i18n::t!("preview_failed", error = core_error_message(&e)).to_string(),
                     );
@@ -521,6 +530,17 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             app.preview = None;
             app.preview_key = None;
             app.preview_loading = false;
+            app.preview_editor_content = None;
+            Task::none()
+        }
+
+        // ── 预览只读编辑器交互（选中/复制；忽略编辑类动作以保持只读）──
+        Message::PreviewEditorAction(action) => {
+            if let Some(content) = &mut app.preview_editor_content
+                && !matches!(action, iced::widget::text_editor::Action::Edit(_))
+            {
+                content.perform(action);
+            }
             Task::none()
         }
 

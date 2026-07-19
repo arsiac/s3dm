@@ -6,6 +6,7 @@
 use std::path::PathBuf;
 
 use crate::preview::PreviewContent;
+use iced::widget::text_editor;
 use s3dm_core::{CoreError, ObjectListResult, S3Bucket, S3Manager};
 
 /// 应用消息枚举，涵盖所有用户交互与异步回调
@@ -78,6 +79,8 @@ pub enum Message {
     },
     /// 关闭预览弹窗
     ClosePreview,
+    /// 预览只读编辑器动作（选中/复制等交互，编辑类动作被忽略以保持只读）
+    PreviewEditorAction(text_editor::Action),
     /// 删除操作结果
     DeleteResult(Result<(), CoreError>),
     /// 下载结果，包含保存路径与写入字节数
