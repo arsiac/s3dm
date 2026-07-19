@@ -80,6 +80,10 @@ pub fn classify(key: &str, size: i64) -> PreviewKind {
         | "html" | "css" | "xml" | "csv" | "ini" | "cfg" | "conf" => PreviewKind::Code,
         "mp3" | "wav" | "flac" | "aac" | "ogg" | "m4a" | "mp4" | "mkv" | "avi" | "mov" | "webm"
         | "flv" => PreviewKind::Unsupported,
+        // 二进制文档 / Office / 可执行 / 字体等：无法作为文本或图片预览
+        "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "odt" | "ods" | "odp"
+        | "exe" | "dll" | "so" | "dylib" | "bin" | "dat" | "class" | "o" | "a" | "obj" | "ttf"
+        | "otf" | "woff" | "woff2" | "eot" => PreviewKind::Unsupported,
         _ => PreviewKind::Text,
     };
 
@@ -392,5 +396,101 @@ pub fn build_preview(key: &str, size: i64, bytes: Vec<u8>) -> PreviewContent {
         PreviewKind::Text => PreviewContent::Text(String::from_utf8_lossy(&bytes).to_string()),
         PreviewKind::TooLarge => PreviewContent::TooLarge,
         PreviewKind::Unsupported => PreviewContent::Unsupported,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classify_detects_text_code_image_svg() {
+        assert_eq!(classify("a.txt", 10), PreviewKind::Text);
+        assert_eq!(classify("a.log", 10), PreviewKind::Text);
+        assert_eq!(classify("a.rs", 10), PreviewKind::Code);
+        assert_eq!(classify("a.json", 10), PreviewKind::Code);
+        assert_eq!(classify("a.png", 10), PreviewKind::Image);
+        assert_eq!(classify("a.JPG", 10), PreviewKind::Image); // 大小写不敏感
+        assert_eq!(classify("a.svg", 10), PreviewKind::Svg);
+    }
+
+    #[test]
+    fn classify_unsupported_types_never_preview() {
+        // 压缩包与音视频无论大小都不支持预览
+        assert_eq!(classify("a.zip", 10), PreviewKind::Unsupported);
+        assert_eq!(classify("a.tar.gz", 10), PreviewKind::Unsupported);
+        assert_eq!(classify("a.mp4", 10), PreviewKind::Unsupported);
+        // 二进制文档 / Office / 可执行 / 字体同样不支持预览
+        assert_eq!(classify("a.pdf", 10), PreviewKind::Unsupported);
+        assert_eq!(classify("report.PDF", 10), PreviewKind::Unsupported); // 大小写不敏感
+        assert_eq!(classify("a.docx", 10), PreviewKind::Unsupported);
+        assert_eq!(classify("a.xlsx", 10), PreviewKind::Unsupported);
+        assert_eq!(classify("a.exe", 10), PreviewKind::Unsupported);
+        assert_eq!(classify("a.ttf", 10), PreviewKind::Unsupported);
+        // 即便超阈值也仍是 Unsupported，而非 TooLarge
+        assert_eq!(
+            classify("a.zip", (MAX_PREVIEW_BYTES + 1) as i64),
+            PreviewKind::Unsupported
+        );
+        assert_eq!(
+            classify("a.pdf", (MAX_PREVIEW_BYTES + 1) as i64),
+            PreviewKind::Unsupported
+        );
+    }
+
+    #[test]
+    fn classify_downgrades_previewable_over_threshold() {
+        let big = (MAX_PREVIEW_BYTES + 1) as i64;
+        assert_eq!(classify("a.txt", big), PreviewKind::TooLarge);
+        assert_eq!(classify("a.rs", big), PreviewKind::TooLarge);
+        assert_eq!(classify("a.png", big), PreviewKind::TooLarge);
+        assert_eq!(classify("a.svg", big), PreviewKind::TooLarge);
+        // 恰好等于阈值不降级
+        assert_eq!(
+            classify("a.txt", MAX_PREVIEW_BYTES as i64),
+            PreviewKind::Text
+        );
+    }
+
+    #[test]
+    fn classify_unknown_extension_defaults_to_text() {
+        assert_eq!(classify("a.unknownext", 10), PreviewKind::Text);
+        assert_eq!(classify("noext", 10), PreviewKind::Text);
+    }
+
+    #[test]
+    fn build_preview_maps_kind_to_content() {
+        assert!(matches!(
+            build_preview("a.txt", 3, b"abc".to_vec()),
+            PreviewContent::Text(_)
+        ));
+        assert!(matches!(
+            build_preview("a.rs", 3, b"abc".to_vec()),
+            PreviewContent::Code { .. }
+        ));
+        assert!(matches!(
+            build_preview("a.png", 3, vec![0u8; 3]),
+            PreviewContent::Image(_)
+        ));
+        assert!(matches!(
+            build_preview("a.svg", 3, vec![0u8; 3]),
+            PreviewContent::Svg(_)
+        ));
+        assert!(matches!(
+            build_preview("a.zip", 3, vec![0u8; 3]),
+            PreviewContent::Unsupported
+        ));
+        assert!(matches!(
+            build_preview("a.txt", (MAX_PREVIEW_BYTES + 1) as i64, vec![]),
+            PreviewContent::TooLarge
+        ));
+    }
+
+    #[test]
+    fn lang_token_maps_common_extensions() {
+        assert_eq!(lang_token("main.rs"), "rust");
+        assert_eq!(lang_token("app.py"), "python");
+        assert_eq!(lang_token("data.json"), "json");
+        assert_eq!(lang_token("unknown.zzz"), "plaintext");
     }
 }
