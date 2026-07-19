@@ -17,6 +17,54 @@ use tokio::io::AsyncWriteExt;
 use crate::http::build_shared_http_client;
 use crate::types::{CoreError, ObjectListResult, S3Bucket, S3Object, to_chrono};
 
+/// 将 aws-sdk-s3 的 `SdkError` 分类为 `CoreError`，并据其结构化类型
+/// 判定是否可重试（分发失败 / 超时 / 响应中断 / 5xx / 429 限流）。
+///
+/// 相比匹配错误文案（`e.to_string().contains(...)`），直接依据 `SdkError`
+/// 的变体与 HTTP 状态码判断，更稳定，不受 SDK 文案变化影响。
+fn map_sdk_error<E>(
+    err: &aws_smithy_runtime_api::client::result::SdkError<
+        E,
+        aws_smithy_runtime_api::client::orchestrator::HttpResponse,
+    >,
+) -> CoreError {
+    use aws_smithy_runtime_api::client::result::SdkError;
+
+    let msg = err.to_string();
+    let retryable = match err {
+        // 连接分发失败（DNS/连接/TLS 等）与超时：网络抖动，值得重试
+        SdkError::DispatchFailure(_) | SdkError::TimeoutError(_) => true,
+        // 响应读取过程中断：可重试
+        SdkError::ResponseError(_) => true,
+        // 服务端返回错误：仅 5xx / 429 限流可重试
+        SdkError::ServiceError(ctx) => {
+            let status = ctx.raw().status().as_u16();
+            status >= 500 || status == 429
+        }
+        _ => false,
+    };
+    if retryable {
+        CoreError::S3Retryable(msg)
+    } else {
+        CoreError::S3(msg)
+    }
+}
+
+/// 确保目标文件的父目录存在（不存在则递归创建）。
+///
+/// 下载写文件前调用，避免因子目录缺失导致 `File::create` 失败
+/// （尤其在按对象 Key 层级重建目录结构时）。
+async fn ensure_parent_dir(dest: &Path) -> Result<(), CoreError> {
+    if let Some(parent) = dest.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        tokio::fs::create_dir_all(parent).await.map_err(|e| {
+            CoreError::Io(format!("failed to create directory {:?}: {}", parent, e))
+        })?;
+    }
+    Ok(())
+}
+
 #[derive(Debug)]
 pub struct S3Manager {
     inner: Arc<S3Inner>,
@@ -54,13 +102,15 @@ impl S3Manager {
             match f(client).await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    let is_dispatch = e.to_string().contains("dispatch failure");
-                    if is_dispatch && attempt < max_attempts {
+                    // 依据结构化错误类型判断是否可重试（见 map_sdk_error），
+                    // 不再匹配错误文案。可重试错误会重建 client 后再试。
+                    if e.is_retryable() && attempt < max_attempts {
                         log::warn!(
-                            "{} failed on attempt {}/{}: dispatch failure, retrying...",
+                            "{} failed on attempt {}/{}: {} (retryable), retrying...",
                             op_name,
                             attempt,
-                            max_attempts
+                            max_attempts,
+                            e
                         );
                         last_err = Some(e);
                         let new_client = aws_sdk_s3::Client::from_conf(self.inner.config.clone());
@@ -158,7 +208,7 @@ impl S3Manager {
         self.run_with_retry("list_buckets", move |client| async move {
             let resp = client.list_buckets().send().await.map_err(|e| {
                 log::error!("Failed to list buckets: {}", e);
-                CoreError::S3(e.to_string())
+                map_sdk_error(&e)
             })?;
 
             let buckets: Vec<S3Bucket> = resp
@@ -215,7 +265,7 @@ impl S3Manager {
                     prefix,
                     e
                 );
-                CoreError::S3(e.to_string())
+                map_sdk_error(&e)
             })?;
 
             let objects: Vec<S3Object> = resp
@@ -282,7 +332,7 @@ impl S3Manager {
                         key,
                         e
                     );
-                    CoreError::S3(e.to_string())
+                    map_sdk_error(&e)
                 })?;
             log::debug!("Object deleted successfully bucket={} key={}", bucket, key);
             Ok(())
@@ -387,9 +437,10 @@ impl S3Manager {
                             log_key,
                             e
                         );
-                        CoreError::S3(e.to_string())
+                        map_sdk_error(&e)
                     })?;
 
+                ensure_parent_dir(&dest).await?;
                 let mut file = tokio::fs::File::create(&dest).await.map_err(|e| {
                     CoreError::Io(format!("failed to create file {:?}: {}", dest, e))
                 })?;
@@ -417,9 +468,12 @@ impl S3Manager {
     /// 下载对象并流式写入本地文件，同时通过回调上报下载进度。
     ///
     /// `on_progress` 参数为 `(已下载字节数, 总大小)`，总大小取自响应的
-    /// `Content-Length`，若服务端未返回则为 `None`（不确定态）。
+    /// `Content-Length`（断点续传时为对象完整大小），若服务端未返回则为
+    /// `None`（不确定态）。
     ///
-    /// 注意：内部带重试，若发生重试将从 0 重新写入并重新上报进度。
+    /// 支持断点续传：内部带重试，若某次尝试中途失败，下次尝试会依据已落盘
+    /// 的字节数发起 `Range: bytes=N-` 请求，从断点处继续追加写入，避免从头
+    /// 重下。若服务端不支持 Range（返回 200 而非 206），则回退为从头重写。
     pub async fn get_object_to_file_with_progress<F>(
         &self,
         bucket: &str,
@@ -430,6 +484,8 @@ impl S3Manager {
     where
         F: Fn(u64, Option<u64>) + Send + Sync,
     {
+        use std::sync::atomic::{AtomicU64, Ordering};
+
         log::info!(
             "Downloading object (with progress) bucket={} key={} -> {:?}",
             bucket,
@@ -437,38 +493,77 @@ impl S3Manager {
             dest
         );
         let on_progress = &on_progress;
+        // 跨重试尝试共享的“已落盘字节数”，用于断点续传
+        let resume_from = Arc::new(AtomicU64::new(0));
         self.run_with_retry("get_object", move |client| {
             let dest = dest.to_path_buf();
             let key = key.to_string();
+            let resume_from = resume_from.clone();
             async move {
                 let log_key = key.clone();
-                let resp = client
-                    .get_object()
-                    .bucket(bucket)
-                    .key(key)
-                    .send()
-                    .await
-                    .map_err(|e| {
-                        log::error!(
-                            "Failed to download object bucket={} key={}: {}",
-                            bucket,
-                            log_key,
-                            e
-                        );
-                        CoreError::S3(e.to_string())
-                    })?;
+                let start = resume_from.load(Ordering::SeqCst);
 
-                let total = resp.content_length().map(|v| v as u64);
-
-                let mut file = tokio::fs::File::create(&dest).await.map_err(|e| {
-                    CoreError::Io(format!("failed to create file {:?}: {}", dest, e))
+                let mut req = client.get_object().bucket(bucket).key(key);
+                if start > 0 {
+                    log::info!(
+                        "Resuming download bucket={} key={} from offset={}",
+                        bucket,
+                        log_key,
+                        start
+                    );
+                    req = req.range(format!("bytes={}-", start));
+                }
+                let resp = req.send().await.map_err(|e| {
+                    log::error!(
+                        "Failed to download object bucket={} key={}: {}",
+                        bucket,
+                        log_key,
+                        e
+                    );
+                    map_sdk_error(&e)
                 })?;
+
+                // 判断服务端是否接受了 Range（206 Partial Content 会带 Content-Range）。
+                let is_partial = resp.content_range().is_some();
+                let content_length = resp.content_length().map(|v| v as u64);
+
+                // 确定起始偏移与文件打开模式：
+                // - 服务端接受续传：追加到已有文件，total = start + 剩余长度
+                // - 未接受（或首次请求）：从头覆盖写
+                let (mut written, total, file) = if start > 0 && is_partial {
+                    let file = tokio::fs::OpenOptions::new()
+                        .append(true)
+                        .open(&dest)
+                        .await
+                        .map_err(|e| {
+                            CoreError::Io(format!(
+                                "failed to open file for append {:?}: {}",
+                                dest, e
+                            ))
+                        })?;
+                    let total = content_length.map(|len| start + len);
+                    (start, total, file)
+                } else {
+                    if start > 0 {
+                        log::warn!(
+                            "Server did not honor Range for bucket={} key={}, restarting from 0",
+                            bucket,
+                            log_key
+                        );
+                        resume_from.store(0, Ordering::SeqCst);
+                    }
+                    ensure_parent_dir(&dest).await?;
+                    let file = tokio::fs::File::create(&dest).await.map_err(|e| {
+                        CoreError::Io(format!("failed to create file {:?}: {}", dest, e))
+                    })?;
+                    (0u64, content_length, file)
+                };
+                let mut file = file;
 
                 let mut reader = resp.body.into_async_read();
                 let mut buf = vec![0u8; 64 * 1024];
-                let mut written: u64 = 0;
-                // 初始进度（0），确保 UI 立即进入下载态
-                on_progress(0, total);
+                // 初始进度，确保 UI 立即进入下载态（续传时从已下载量起步）
+                on_progress(written, total);
                 loop {
                     let n = tokio::io::AsyncReadExt::read(&mut reader, &mut buf)
                         .await
@@ -480,6 +575,8 @@ impl S3Manager {
                         CoreError::Io(format!("failed to write file {:?}: {}", dest, e))
                     })?;
                     written += n as u64;
+                    // 记录已落盘量，供下次重试续传
+                    resume_from.store(written, Ordering::SeqCst);
                     on_progress(written, total);
                 }
                 file.flush().await.map_err(|e| {
@@ -521,7 +618,7 @@ impl S3Manager {
                             log_key,
                             e
                         );
-                        CoreError::S3(e.to_string())
+                        map_sdk_error(&e)
                     })?;
                 let data = resp
                     .body
@@ -563,7 +660,7 @@ impl S3Manager {
                             log_key,
                             e
                         );
-                        CoreError::S3(e.to_string())
+                        map_sdk_error(&e)
                     })?;
                 Ok(())
             }
@@ -606,7 +703,7 @@ impl S3Manager {
                             key,
                             e
                         );
-                        CoreError::S3(e.to_string())
+                        map_sdk_error(&e)
                     })?;
                 log::info!("Object uploaded successfully bucket={} key={}", bucket, key);
                 Ok(())
@@ -631,7 +728,7 @@ impl S3Manager {
                         key,
                         e
                     );
-                    CoreError::S3(e.to_string())
+                    map_sdk_error(&e)
                 })?;
 
             let size = resp.content_length().unwrap_or(0) as i64;
@@ -670,5 +767,25 @@ mod tests {
             false,
         );
         let _cloned = m.clone();
+    }
+
+    #[tokio::test]
+    async fn ensure_parent_dir_creates_nested_dirs() {
+        let base = std::env::temp_dir().join(format!("s3dm_epd_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let dest = base.join("a").join("b").join("c.txt");
+        ensure_parent_dir(&dest).await.expect("should create dirs");
+        assert!(dest.parent().unwrap().is_dir());
+        // 幂等：再次调用不报错
+        ensure_parent_dir(&dest).await.expect("idempotent");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[tokio::test]
+    async fn ensure_parent_dir_noop_without_parent() {
+        // 无父目录（纯文件名）不应报错
+        ensure_parent_dir(Path::new("file.txt"))
+            .await
+            .expect("no parent is ok");
     }
 }

@@ -20,7 +20,7 @@ use s3dm_core::CoreError;
 /// （通常来自 AWS SDK / 标准库，本身已是英文）。
 pub fn core_error_message(e: &CoreError) -> String {
     let (kind, detail) = match e {
-        CoreError::S3(d) => (t!("error_s3"), d.as_str()),
+        CoreError::S3(d) | CoreError::S3Retryable(d) => (t!("error_s3"), d.as_str()),
         CoreError::Connection(d) => (t!("error_connection"), d.as_str()),
         CoreError::NotFound(d) => (t!("error_not_found"), d.as_str()),
         CoreError::Io(d) => (t!("error_io"), d.as_str()),

@@ -57,12 +57,23 @@ pub struct ObjectListResult {
 pub enum CoreError {
     #[error("S3 error: {0}")]
     S3(String),
+    /// S3 传输层可重试错误（连接/分发失败、超时等），供内部重试机制识别。
+    /// 对上层展示与 `S3` 等同。
+    #[error("S3 error: {0}")]
+    S3Retryable(String),
     #[error("Connection error: {0}")]
     Connection(String),
     #[error("Not found: {0}")]
     NotFound(String),
     #[error("IO error: {0}")]
     Io(String),
+}
+
+impl CoreError {
+    /// 是否为可重试的传输层错误。
+    pub fn is_retryable(&self) -> bool {
+        matches!(self, CoreError::S3Retryable(_))
+    }
 }
 
 #[cfg(test)]
@@ -107,5 +118,23 @@ mod tests {
         };
         assert!(!r.is_truncated);
         assert_eq!(r.common_prefixes.len(), 1);
+    }
+
+    #[test]
+    fn is_retryable_only_for_retryable_variant() {
+        assert!(CoreError::S3Retryable("dispatch failure".into()).is_retryable());
+        assert!(!CoreError::S3("bad request".into()).is_retryable());
+        assert!(!CoreError::Connection("x".into()).is_retryable());
+        assert!(!CoreError::NotFound("x".into()).is_retryable());
+        assert!(!CoreError::Io("x".into()).is_retryable());
+    }
+
+    #[test]
+    fn retryable_variant_displays_like_s3() {
+        // 对上层展示与 S3 等同（同一 error 文案前缀）
+        assert_eq!(
+            CoreError::S3Retryable("boom".into()).to_string(),
+            CoreError::S3("boom".into()).to_string()
+        );
     }
 }
