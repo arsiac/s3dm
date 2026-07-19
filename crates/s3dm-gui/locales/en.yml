@@ -43,6 +43,7 @@ download_save_path: "Download save path"
 folder: "Folder"
 download: "Download"
 load_more: "Load more..."
+empty_bucket: "This bucket is empty"
 
 # Preview
 preview_loading: "Loading preview..."

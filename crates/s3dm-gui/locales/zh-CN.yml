@@ -43,6 +43,7 @@ download_save_path: "下载保存路径"
 folder: "文件夹"
 download: "下载"
 load_more: "加载更多..."
+empty_bucket: "当前存储桶为空"
 
 # 预览
 preview_loading: "正在加载预览..."

@@ -293,6 +293,28 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
         );
     }
 
+    // ── 空状态提示（整体居中） ──
+    if !app.is_truncated
+        && app.current_prefix.is_empty()
+        && app.common_prefixes.is_empty()
+        && app.objects.is_empty()
+    {
+        let empty = container(
+            text(t!("empty_bucket").to_string())
+                .size(14)
+                .color(p.text_secondary),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill);
+
+        return container(column![breadcrumb, rule::horizontal(1), empty].spacing(10))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into();
+    }
+
     // ── "加载更多"分页按钮 ──
     if app.is_truncated {
         items.push(
