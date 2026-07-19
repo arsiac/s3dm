@@ -200,7 +200,10 @@ fn render_code(content: &str, token: &str, theme: &Theme) -> Element<'static, Me
         elements.push(rt);
     }
 
-    scrollable(column(elements).spacing(0)).into()
+    scrollable(column(elements).spacing(0))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
 }
 
 /// 渲染预览弹窗主体内容
@@ -223,7 +226,10 @@ fn preview_body<'a>(app: &'a App, content: &'a PreviewContent) -> Element<'a, Me
                 ];
                 elements.push(iced::widget::rich_text(spans).font(font).size(13.0).into());
             }
-            scrollable(column(elements).spacing(0)).into()
+            scrollable(column(elements).spacing(0))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
         }
         PreviewContent::Code { token, content } => render_code(content, token, &app.theme),
         PreviewContent::Image(bytes) => scrollable(
@@ -238,6 +244,8 @@ fn preview_body<'a>(app: &'a App, content: &'a PreviewContent) -> Element<'a, Me
             .center_x(Length::Fill)
             .center_y(Length::Fill),
         )
+        .width(Length::Fill)
+        .height(Length::Fill)
         .into(),
         PreviewContent::Svg(bytes) => scrollable(
             container(
@@ -251,6 +259,8 @@ fn preview_body<'a>(app: &'a App, content: &'a PreviewContent) -> Element<'a, Me
             .center_x(Length::Fill)
             .center_y(Length::Fill),
         )
+        .width(Length::Fill)
+        .height(Length::Fill)
         .into(),
         PreviewContent::TooLarge => container(
             text(t!("preview_too_large").to_string())
