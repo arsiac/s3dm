@@ -119,3 +119,11 @@ language: "语言"
 download_dir: "下载目录"
 download_dir_hint: "文件下载保存路径"
 close: "关闭"
+
+# 关于
+about: "关于"
+app_name: "S3 Desktop Manager"
+app_description: "一款跨平台的图形化客户端，用于管理 S3 存储桶与对象。"
+version: "版本"
+author: "作者"
+license: "许可证"

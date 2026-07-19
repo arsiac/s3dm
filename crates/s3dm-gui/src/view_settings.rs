@@ -6,7 +6,7 @@
 use iced::{
     Alignment, Border, Element, Length, Padding,
     widget::{
-        Theme, button, column, container, pick_list, progress_bar, row, rule, svg,
+        Theme, button, column, container, image, pick_list, progress_bar, row, rule, svg,
         svg::Handle as SvgHandle, text, text_input,
     },
 };
@@ -98,12 +98,57 @@ pub fn view_settings(app: &App) -> Element<'_, Message> {
         text(t!("download_dir").to_string()).size(16),
         text_input(&t!("download_dir_hint"), &app.download_dir)
             .on_input(Message::DownloadDirChanged),
+        rule::horizontal(1),
+        // 关于：程序基础信息（图标 + 名称 + 版本 + 描述 + 作者/许可证）
+        {
+            let app_icon = image(iced::widget::image::Handle::from_bytes(
+                icon::WINDOW_ICON.to_vec(),
+            ))
+            .width(Length::Fixed(48.0))
+            .height(Length::Fixed(48.0));
+
+            let header = row![
+                app_icon,
+                column![
+                    text(t!("app_name").to_string()).size(18),
+                    text(format!("{} {}", t!("version"), constants::APP_VERSION))
+                        .size(13)
+                        .color(p.text_secondary),
+                ]
+                .spacing(4)
+                .align_x(Alignment::Start),
+            ]
+            .spacing(12)
+            .align_y(Alignment::Center);
+
+            let description = text(t!("app_description").to_string())
+                .size(12)
+                .color(p.text_secondary)
+                .width(Length::Fill);
+
+            let meta = row![
+                text(format!("{}: {}", t!("author"), constants::APP_AUTHOR))
+                    .size(12)
+                    .color(p.text_secondary),
+                container(
+                    text(format!("{}: {}", t!("license"), constants::APP_LICENSE))
+                        .size(12)
+                        .color(p.text_secondary)
+                )
+                .width(Length::Fill)
+                .align_x(Alignment::End),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center);
+
+            column![header, description, meta].spacing(10)
+        },
     ]
     .spacing(15)
     .padding(20);
 
     container(panel)
-        .width(360)
+        .width(500)
         .style(|theme: &Theme| container::Style {
             background: Some(iced::Background::Color(
                 constants::custom_palette(theme).surface_raised,

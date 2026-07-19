@@ -101,3 +101,12 @@ pub fn format_size(size: i64) -> String {
     }
     format!("{:.1} {}", size, UNITS[unit_idx])
 }
+
+/// 应用名称
+pub const APP_NAME: &str = "S3 Desktop Manager";
+/// 应用版本号（编译期从 Cargo.toml 的 `version` 字段注入）
+pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// 应用作者
+pub const APP_AUTHOR: &str = "arsiac";
+/// 应用许可证
+pub const APP_LICENSE: &str = "MIT";

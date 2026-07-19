@@ -119,3 +119,11 @@ language: "Language"
 download_dir: "Download Directory"
 download_dir_hint: "Path to save downloaded files"
 close: "Close"
+
+# About
+about: "About"
+app_name: "S3 Desktop Manager"
+app_description: "A cross-platform GUI client to manage S3 buckets and objects."
+version: "Version"
+author: "Author"
+license: "License"
