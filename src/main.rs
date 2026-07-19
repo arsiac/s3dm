@@ -1,3 +1,5 @@
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 fn main() -> iced::Result {
     let project_level = if cfg!(debug_assertions) {
         "debug"

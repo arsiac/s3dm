@@ -35,6 +35,11 @@ description = "S3 Desktop Manager - a GUI client to manage S3 buckets and object
 license = "MIT"
 authors = ["arsiac"]
 readme = false
+build = "build.rs"
+
+# Windows 资源（文件图标等）仅在 Windows 下嵌入，依赖也只在 Windows 引入
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
 
 [dependencies]
 iced = { workspace = true }
