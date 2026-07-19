@@ -4,6 +4,9 @@ use std::path::PathBuf;
 use thiserror::Error;
 use uuid::Uuid;
 
+mod settings;
+pub use settings::AppSettings;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectionConfig {
     pub id: String,
@@ -305,5 +308,33 @@ mod tests {
         store.delete(&id).unwrap();
         assert!(store.get(&id).is_none());
         let _ = std::fs::remove_file(&store.file_path);
+    }
+
+    #[test]
+    fn settings_roundtrip() {
+        let path =
+            std::env::temp_dir().join(format!("s3dm-settings-{}.json", uuid::Uuid::new_v4()));
+        let _ = std::fs::remove_file(&path);
+
+        let settings = AppSettings {
+            theme: "Light".into(),
+            language: "zh-CN".into(),
+            download_dir: "/tmp".into(),
+        };
+        // 直接写临时文件验证序列化/反序列化
+        let content = serde_json::to_string_pretty(&settings).unwrap();
+        std::fs::write(&path, content).unwrap();
+        let loaded: AppSettings =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(loaded.theme, "Light");
+        assert_eq!(loaded.language, "zh-CN");
+        assert_eq!(loaded.download_dir, "/tmp");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn settings_defaults_language_en() {
+        assert_eq!(AppSettings::default().language, "en");
+        assert_eq!(AppSettings::default().theme, "Dark");
     }
 }

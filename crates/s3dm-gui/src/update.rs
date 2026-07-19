@@ -853,6 +853,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         // ── 下载目录变更 ──
         Message::DownloadDirChanged(path) => {
             app.download_dir = path;
+            save_settings(app);
             Task::none()
         }
 
@@ -879,6 +880,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             if let Some((_, theme)) = AVAILABLE_THEMES.iter().find(|(n, _)| *n == name) {
                 app.theme = theme.clone();
                 app.current_theme_name = name;
+                save_settings(app);
             }
             Task::none()
         }
@@ -886,8 +888,23 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         // ── 语言切换 ──
         Message::LanguageChanged(code) => {
             rust_i18n::set_locale(&code);
+            save_settings(app);
             Task::none()
         }
+    }
+}
+
+/// 将当前内存中的偏好设置（主题/语言/下载目录）持久化到 `settings.json`。
+///
+/// 失败仅记录日志，不阻断交互（设置属于非关键偏好）。
+fn save_settings(app: &App) {
+    let settings = s3dm_config::AppSettings {
+        theme: app.current_theme_name.clone(),
+        language: rust_i18n::locale().to_string(),
+        download_dir: app.download_dir.clone(),
+    };
+    if let Err(e) = settings.save() {
+        log::error!("Failed to save settings: {}", e);
     }
 }
 

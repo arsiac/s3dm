@@ -9,6 +9,7 @@ use s3dm_config::ConfigStore;
 use s3dm_core::{CoreError, S3Bucket, S3Manager, S3Object};
 
 use crate::connection::ConnectionForm;
+use crate::constants;
 use crate::message::Message;
 use crate::preview::PreviewContent;
 
@@ -111,29 +112,56 @@ impl App {
 /// 应用初始化入口，返回 (App, Task)
 ///
 /// 流程：
-/// 1. 通过 `sys-locale` 检测系统语言
-/// 2. 设置 `rust-i18n` 的 locale
-/// 3. 构造 `App` 默认实例
+/// 1. 从持久化设置加载主题/语言/下载目录偏好
+/// 2. 通过 `sys-locale` 检测系统语言（仅当设置中未显式指定时作为兜底）
+/// 3. 设置 `rust-i18n` 的 locale
+/// 4. 构造 `App` 默认实例
 pub fn boot() -> (App, Task<Message>) {
+    let settings = s3dm_config::AppSettings::load();
+    let stored_lang = settings.language.clone();
+
     let locale = sys_locale::get_locale().unwrap_or_default();
     let lang = locale.split('-').next().unwrap_or("en");
-    match lang {
+    let system_locale = match lang {
         "zh" => {
             if locale.starts_with("zh-TW")
                 || locale.starts_with("zh-HK")
                 || locale.starts_with("zh-Hant")
             {
-                rust_i18n::set_locale("zh-TW");
+                "zh-TW".to_string()
             } else {
-                rust_i18n::set_locale("zh-CN");
+                "zh-CN".to_string()
             }
         }
-        _ => rust_i18n::set_locale("en"),
-    }
+        _ => "en".to_string(),
+    };
+    // 设置中保存的语言优先；否则回退到系统检测
+    let effective_locale = if stored_lang.is_empty() {
+        system_locale
+    } else {
+        stored_lang
+    };
+    rust_i18n::set_locale(&effective_locale);
     log::info!(
         "Initializing S3DM application (locale: {})",
         &*rust_i18n::locale()
     );
+
+    // 根据持久化主题名解析 Iced Theme
+    let (theme, current_theme_name) = constants::AVAILABLE_THEMES
+        .iter()
+        .find(|(name, _)| *name == settings.theme)
+        .map(|(name, t)| (t.clone(), name.to_string()))
+        .unwrap_or((iced::Theme::Dark, "Dark".to_string()));
+
+    let download_dir = if settings.download_dir.is_empty() {
+        dirs::download_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default()
+    } else {
+        settings.download_dir.clone()
+    };
+
     let app = App {
         config_store: ConfigStore::new(),
         s3_manager: None,
@@ -153,9 +181,7 @@ pub fn boot() -> (App, Task<Message>) {
         continuation_token: None,
         is_loading: false,
         connecting_name: None,
-        download_dir: dirs::download_dir()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_default(),
+        download_dir,
         downloading_file: None,
         downloading_key: None,
         download_progress: None,
@@ -168,8 +194,8 @@ pub fn boot() -> (App, Task<Message>) {
         preview_loading: false,
         new_folder_input: None,
         show_settings: false,
-        theme: Theme::Dark,
-        current_theme_name: "Dark".to_string(),
+        theme,
+        current_theme_name,
     };
     (app, Task::none())
 }
