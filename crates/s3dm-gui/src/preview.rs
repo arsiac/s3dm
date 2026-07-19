@@ -232,35 +232,27 @@ fn preview_body<'a>(app: &'a App, content: &'a PreviewContent) -> Element<'a, Me
                 .into()
         }
         PreviewContent::Code { token, content } => render_code(content, token, &app.theme),
-        PreviewContent::Image(bytes) => scrollable(
-            container(
-                image(Handle::from_bytes(bytes.clone()))
-                    .content_fit(iced::ContentFit::Contain)
-                    .width(Length::Fill)
-                    .height(Length::Fill),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill),
+        PreviewContent::Image(bytes) => container(
+            image(Handle::from_bytes(bytes.clone()))
+                .content_fit(iced::ContentFit::Contain)
+                .width(Length::Fill)
+                .height(Length::Fill),
         )
         .width(Length::Fill)
         .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
         .into(),
-        PreviewContent::Svg(bytes) => scrollable(
-            container(
-                svg(SvgHandle::from_memory(bytes.clone()))
-                    .content_fit(iced::ContentFit::Contain)
-                    .width(Length::Fill)
-                    .height(Length::Fill),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill),
+        PreviewContent::Svg(bytes) => container(
+            svg(SvgHandle::from_memory(bytes.clone()))
+                .content_fit(iced::ContentFit::Contain)
+                .width(Length::Fill)
+                .height(Length::Fill),
         )
         .width(Length::Fill)
         .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
         .into(),
         PreviewContent::TooLarge => container(
             text(t!("preview_too_large").to_string())
