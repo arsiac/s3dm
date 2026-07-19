@@ -61,6 +61,25 @@ fn sanitize_filename(name: &str) -> String {
     out
 }
 
+/// 将 S3 对象 Key 转换为下载目录下的相对路径，保留其目录层级。
+///
+/// 按 `/` 逐段拆分并各自 `sanitize_filename` 消毒，过滤空段与 `.`/`..`
+/// 以防目录穿越；用 `PathBuf` 逐段拼接保证跨平台安全。
+/// 若结果为空（例如 key 以 `/` 结尾或全为非法段），回退为 `_`。
+fn sanitize_key_to_relpath(key: &str) -> PathBuf {
+    let mut path = PathBuf::new();
+    for segment in key.split('/') {
+        if segment.is_empty() || segment == "." || segment == ".." {
+            continue;
+        }
+        path.push(sanitize_filename(segment));
+    }
+    if path.as_os_str().is_empty() {
+        path.push("_");
+    }
+    path
+}
+
 /// 若目标路径已存在，则追加 `_N` 后缀生成不冲突的唯一路径，避免静默覆盖。
 fn unique_save_path(base: &Path) -> PathBuf {
     if !base.exists() {
@@ -679,15 +698,20 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 None => return Task::none(),
             };
             let dir = app.download_dir.clone();
-            let fname = sanitize_filename(key.rsplit_once('/').map(|(_, n)| n).unwrap_or(&key));
-            let base = format!("{}/{}", dir.trim_end_matches('/'), fname);
-            let save_path = unique_save_path(std::path::Path::new(&base))
-                .to_string_lossy()
-                .to_string();
-            if base != save_path {
+            // 按 key 目录层级在下载目录下重建子路径（保留 a/b/c.txt 结构）
+            let relpath = sanitize_key_to_relpath(&key);
+            // UI 仅展示文件名（相对路径末段）
+            let fname = relpath
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "_".to_string());
+            let base = Path::new(dir.trim_end_matches('/')).join(&relpath);
+            let base_display = base.to_string_lossy().to_string();
+            let save_path = unique_save_path(&base).to_string_lossy().to_string();
+            if base_display != save_path {
                 log::warn!(
                     "Download target exists, renamed to avoid overwrite: {} -> {}",
-                    base,
+                    base_display,
                     save_path
                 );
             }
@@ -884,5 +908,95 @@ fn connect_to(app: &mut App, conn_id: String) -> Task<Message> {
         app.is_loading = false;
         app.connecting_name = None;
         Task::none()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sanitize_filename_replaces_reserved_chars() {
+        assert_eq!(
+            sanitize_filename("a/b\\c:d*e?f\"g<h>i|j"),
+            "a_b_c_d_e_f_g_h_i_j"
+        );
+        assert_eq!(sanitize_filename("normal.txt"), "normal.txt");
+    }
+
+    #[test]
+    fn sanitize_filename_handles_empty_and_dots() {
+        assert_eq!(sanitize_filename(""), "_");
+        assert_eq!(sanitize_filename("   "), "_");
+        assert_eq!(sanitize_filename("."), "_");
+        assert_eq!(sanitize_filename(".."), "_");
+    }
+
+    #[test]
+    fn sanitize_key_to_relpath_preserves_hierarchy() {
+        assert_eq!(
+            sanitize_key_to_relpath("a/b/c.txt"),
+            PathBuf::from("a").join("b").join("c.txt")
+        );
+    }
+
+    #[test]
+    fn sanitize_key_to_relpath_single_segment() {
+        assert_eq!(
+            sanitize_key_to_relpath("file.txt"),
+            PathBuf::from("file.txt")
+        );
+    }
+
+    #[test]
+    fn sanitize_key_to_relpath_skips_empty_and_traversal_segments() {
+        // 空段、. 与 .. 均被过滤，防目录穿越
+        assert_eq!(
+            sanitize_key_to_relpath("a//b/../c/./d.txt"),
+            PathBuf::from("a").join("b").join("c").join("d.txt")
+        );
+        // 末尾斜杠（folder marker）不产生额外空段
+        assert_eq!(
+            sanitize_key_to_relpath("a/b/"),
+            PathBuf::from("a").join("b")
+        );
+    }
+
+    #[test]
+    fn sanitize_key_to_relpath_sanitizes_each_segment() {
+        // 每段单独消毒，非法字符被替换但层级保留
+        assert_eq!(
+            sanitize_key_to_relpath("a/b*c/d?e.txt"),
+            PathBuf::from("a").join("b_c").join("d_e.txt")
+        );
+    }
+
+    #[test]
+    fn sanitize_key_to_relpath_empty_falls_back() {
+        assert_eq!(sanitize_key_to_relpath(""), PathBuf::from("_"));
+        assert_eq!(sanitize_key_to_relpath("///"), PathBuf::from("_"));
+    }
+
+    #[test]
+    fn unique_save_path_returns_original_when_absent() {
+        let dir = std::env::temp_dir().join(format!("s3dm_test_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let p = dir.join("nonexistent.txt");
+        assert_eq!(unique_save_path(&p), p);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn unique_save_path_appends_suffix_on_conflict() {
+        let dir = std::env::temp_dir().join(format!("s3dm_test_uniq_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let p = dir.join("dup.txt");
+        std::fs::write(&p, b"x").unwrap();
+        let candidate = unique_save_path(&p);
+        assert_eq!(candidate, dir.join("dup_1.txt"));
+        // 再占用 _1，应退到 _2
+        std::fs::write(&candidate, b"x").unwrap();
+        assert_eq!(unique_save_path(&p), dir.join("dup_2.txt"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
