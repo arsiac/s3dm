@@ -43,6 +43,7 @@ pub fn config_error_message(e: &ConfigError) -> String {
             };
             t!("validation_required", field = field_label).to_string()
         }
+        ConfigError::InvalidEndpoint => t!("endpoint_invalid_protocol").to_string(),
     }
 }
 
@@ -193,6 +194,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             });
             app.connection_testing = false;
             app.connection_test_result = None;
+            app.connection_form_error = None;
             Task::none()
         }
 
@@ -206,6 +208,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             }
             app.connection_testing = false;
             app.connection_test_result = None;
+            app.connection_form_error = None;
             Task::none()
         }
 
@@ -248,6 +251,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
 
         // ── 连接表单字段变更 ──
         Message::ConnectionFormChanged { field, value } => {
+            app.connection_form_error = None;
+            app.connection_test_result = None;
             if let Some(form) = &mut app.connection_form {
                 match field.as_str() {
                     "name" => form.name = value,
@@ -267,17 +272,30 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         Message::ConnectionFormSave => {
             if let Some(form) = app.connection_form.take() {
                 let config = form.to_config();
-                let result = if form.id.is_some() {
-                    app.config_store.update(config)
-                } else {
-                    app.config_store.add(config)
-                };
-                if let Err(e) = result {
-                    log::error!("Save connection failed: {}", e);
-                    app.error_message = Some(
-                        rust_i18n::t!("save_connection_failed", error = config_error_message(&e))
-                            .to_string(),
-                    );
+                match config.validate() {
+                    Ok(()) => {
+                        let result = if form.id.is_some() {
+                            app.config_store.update(config)
+                        } else {
+                            app.config_store.add(config)
+                        };
+                        if let Err(e) = result {
+                            log::error!("Save connection failed: {}", e);
+                            app.error_message = Some(
+                                rust_i18n::t!(
+                                    "save_connection_failed",
+                                    error = config_error_message(&e)
+                                )
+                                .to_string(),
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Save connection blocked by validation: {}", e);
+                        app.connection_form_error = Some(config_error_message(&e));
+                        // 保留表单以便用户修正
+                        app.connection_form = Some(form);
+                    }
                 }
             }
             app.connection_testing = false;
@@ -291,9 +309,12 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 Some(f) => f.clone(),
                 None => return Task::none(),
             };
-            if form.endpoint.is_empty() {
+            // 先做参数校验，校验失败直接在表单内提示，避免无意义的网络请求
+            if let Err(e) = form.to_config().validate() {
+                log::warn!("Connection test blocked by validation: {}", e);
+                app.connection_testing = false;
                 app.connection_test_result = Some(Err(s3dm_core::CoreError::Connection(
-                    rust_i18n::t!("test_connection_empty_endpoint").to_string(),
+                    config_error_message(&e),
                 )));
                 return Task::none();
             }

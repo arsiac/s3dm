@@ -58,6 +58,13 @@ impl ConnectionConfig {
             log::warn!("Validation failed: endpoint is empty id={}", self.id);
             return Err(ConfigError::Validation("endpoint".into()));
         }
+        if !self.endpoint.starts_with("http://") && !self.endpoint.starts_with("https://") {
+            log::warn!(
+                "Validation failed: endpoint missing http/https scheme id={}",
+                self.id
+            );
+            return Err(ConfigError::InvalidEndpoint);
+        }
         if self.access_key_id.trim().is_empty() {
             log::warn!("Validation failed: access key id is empty id={}", self.id);
             return Err(ConfigError::Validation("access_key_id".into()));
@@ -82,6 +89,8 @@ pub enum ConfigError {
     Json(#[from] serde_json::Error),
     #[error("Validation error: {0}")]
     Validation(String),
+    #[error("Invalid endpoint: must start with http:// or https://")]
+    InvalidEndpoint,
 }
 
 pub struct ConfigStore {
@@ -228,6 +237,24 @@ mod tests {
         let mut c = sample_config();
         c.endpoint.clear();
         assert!(c.validate().is_err());
+    }
+
+    #[test]
+    fn validate_rejects_endpoint_without_scheme() {
+        let mut c = sample_config();
+        c.endpoint = "s3.example.com".into();
+        assert!(matches!(c.validate(), Err(ConfigError::InvalidEndpoint)));
+        c.endpoint = "ftp://s3.example.com".into();
+        assert!(matches!(c.validate(), Err(ConfigError::InvalidEndpoint)));
+    }
+
+    #[test]
+    fn validate_accepts_http_and_https_endpoint() {
+        let mut c = sample_config();
+        c.endpoint = "https://s3.example.com".into();
+        assert!(c.validate().is_ok());
+        c.endpoint = "http://192.168.1.10:9000".into();
+        assert!(c.validate().is_ok());
     }
 
     #[test]

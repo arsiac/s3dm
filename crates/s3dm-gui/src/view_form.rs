@@ -87,6 +87,9 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
                 value: v,
             }
         }),
+        text(t!("endpoint_protocol_hint").to_string())
+            .size(12)
+            .color(constants::custom_palette(&app.theme).text_secondary),
         text_input(&t!("region"), &form.region).on_input(|v| {
             Message::ConnectionFormChanged {
                 field: "region".into(),
@@ -140,6 +143,8 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
             let pal = constants::custom_palette(&app.theme);
             let msg = if app.connection_testing {
                 Some((t!("testing_connection").to_string(), pal.text_secondary))
+            } else if let Some(err) = &app.connection_form_error {
+                Some((err.clone(), iced::Color::from_rgb(0.8, 0.3, 0.3)))
             } else if let Some(result) = &app.connection_test_result {
                 match result {
                     Ok(()) => Some((

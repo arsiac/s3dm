@@ -32,6 +32,8 @@ pub struct App {
     pub connection_testing: bool,
     /// 连接表单测试结果（None 表示尚未测试）
     pub connection_test_result: Option<Result<(), CoreError>>,
+    /// 连接表单参数校验/错误提示（在表单内展示，None 表示无错误）
+    pub connection_form_error: Option<String>,
     /// 当前连接下的桶列表
     pub buckets: Vec<S3Bucket>,
     /// 当前选中的桶名称
@@ -141,6 +143,7 @@ pub fn boot() -> (App, Task<Message>) {
         connection_form: None,
         connection_testing: false,
         connection_test_result: None,
+        connection_form_error: None,
         buckets: Vec::new(),
         current_bucket: None,
         current_prefix: String::new(),
