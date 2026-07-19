@@ -72,8 +72,23 @@ pub fn classify(key: &str, size: i64) -> PreviewKind {
         }
         "svg" => PreviewKind::Svg,
         "json" | "yaml" | "yml" | "toml" | "py" | "rs" | "c" | "h" | "hpp" | "cpp" | "cc"
-        | "java" | "js" | "ts" | "tsx" | "jsx" | "go" | "rb" | "php" | "sh" | "bash" | "md"
-        | "html" | "css" | "xml" | "csv" | "ini" | "cfg" | "conf" => PreviewKind::Code,
+        | "cxx" | "java" | "js" | "ts" | "tsx" | "jsx" | "go" | "rb" | "php" | "sh" | "bash"
+        | "md" | "html" | "htm" | "css" | "xml" | "csv" | "ini" | "cfg" | "conf"
+        // 数据库
+        | "sql" | "mysql" | "pgsql" | "sqlite" | "db2" | "pls" | "ddl"
+        // JVM / 现代语言
+        | "kt" | "kts" | "scala" | "groovy" | "gradle"
+        // 脚本 / 其他语言
+        | "lua" | "dart" | "pl" | "pm" | "r" | "ps1" | "psm1" | "bat" | "cmd" | "tcl"
+        | "ex" | "exs" | "erl" | "clj" | "jl" | "nim" | "zig" | "hs" | "swift"
+        // 前端 / 标记
+        | "vue" | "svelte" | "scss" | "sass" | "less" | "graphql" | "gql" | "rst" | "rest"
+        | "tex" | "bib" | "proto" | "tf" | "tfvars" | "sol" | "ino"
+        // 配置 / 构建 / 差异
+        | "env" | "editorconfig" | "diff" | "patch"
+        // 无扩展名但可识别的文件名（小写后匹配）
+        | "dockerfile" | "makefile" | "cmakelists.txt" | "justfile" | "rakefile"
+        | "gemfile" | "vagrantfile" => PreviewKind::Code,
         "mp3" | "wav" | "flac" | "aac" | "ogg" | "m4a" | "mp4" | "mkv" | "avi" | "mov" | "webm"
         | "flv" => PreviewKind::Unsupported,
         // 二进制文档 / Office / 可执行 / 字体等：无法作为文本或图片预览
@@ -115,7 +130,7 @@ fn lang_token(key: &str) -> String {
         "css" => "css",
         "xml" => "xml",
         "c" | "h" => "c",
-        "cpp" | "cc" | "cxx" | "hpp" => "cpp",
+        "cpp" | "cc" | "cxx" | "hpp" | "ino" => "cpp",
         "java" => "java",
         "go" => "go",
         "rb" => "ruby",
@@ -123,6 +138,50 @@ fn lang_token(key: &str) -> String {
         "sh" | "bash" => "bash",
         "csv" => "csv",
         "ini" | "cfg" | "conf" => "ini",
+        // 数据库
+        "sql" | "mysql" | "pgsql" | "sqlite" | "db2" | "pls" | "ddl" => "SQL",
+        // JVM / 现代语言
+        "kt" | "kts" => "Kotlin",
+        "scala" => "Scala",
+        "groovy" => "Groovy",
+        "gradle" => "Gradle",
+        "swift" => "Swift",
+        // 脚本 / 其他语言
+        "lua" => "Lua",
+        "dart" => "Dart",
+        "pl" | "pm" => "Perl",
+        "r" => "R",
+        "ps1" | "psm1" => "PowerShell",
+        "bat" | "cmd" => "Batch File",
+        "tcl" => "Tcl",
+        "ex" | "exs" => "Elixir",
+        "erl" => "Erlang",
+        "clj" => "Clojure",
+        "jl" => "Julia",
+        "nim" => "Nim",
+        "zig" => "Zig",
+        "hs" => "Haskell",
+        // 前端 / 标记
+        "vue" => "Vue",
+        "svelte" => "Svelte",
+        "scss" | "sass" => "Sass",
+        "less" => "Less",
+        "graphql" | "gql" => "GraphQL",
+        "rst" | "rest" => "reStructuredText",
+        "tex" => "LaTeX",
+        "bib" => "Bibtex",
+        "proto" => "Protocol Buffer",
+        "tf" | "tfvars" => "HCL",
+        "sol" => "Solidity",
+        // 配置 / 构建 / 差异
+        "env" => "DotEnv",
+        "editorconfig" => "EditorConfig",
+        "diff" | "patch" => "Diff",
+        // 无扩展名但可识别的文件名（小写后匹配）
+        "dockerfile" => "Dockerfile",
+        "makefile" | "justfile" => "Makefile",
+        "cmakelists.txt" => "CMake",
+        "rakefile" | "gemfile" | "vagrantfile" => "ruby",
         "log" | "txt" => "plaintext",
         _ => "plaintext",
     };
