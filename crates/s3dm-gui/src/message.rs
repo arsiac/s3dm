@@ -133,4 +133,20 @@ pub enum Message {
     NewFolderInputChanged(String),
     /// 确认创建文件夹
     CreateNewFolder,
+
+    // ── 更新检查 ──
+    /// 手动或自动触发更新检查
+    CheckForUpdates,
+    /// 更新检查结果回调（Ok(Some) 表示有新版本，Ok(None) 表示已是最新，Err 为错误描述）
+    /// 第二个布尔值指示是否来自启动时的自动检查，用于决定是否静默处理错误
+    UpdateCheckResult(
+        Result<Option<s3dm_core::update_check::ReleaseInfo>, String>,
+        bool,
+    ),
+    /// 关闭顶部更新提示栏（保留结果，仅本次会话不再自动弹出）
+    DismissUpdateNotice,
+    /// 在浏览器中打开发布页下载页
+    OpenReleasePage,
+    /// 切换「启动时自动检查更新」设置项
+    ToggleAutoCheckUpdate(bool),
 }

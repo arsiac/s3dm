@@ -14,6 +14,19 @@ use rust_i18n::t;
 use s3dm_config::ConfigError;
 use s3dm_core::CoreError;
 
+/// 最近一次更新检查的结论，用于在设置面板内就地反馈。
+///
+/// 与 `App::update_info`（驱动主窗口顶部强提示栏）分开：
+/// 本状态仅承载「已是最新 / 出错」等轻量结论，避免把弹窗内的
+/// 手动检查反馈意外泄漏到主窗口顶部栏。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UpdateCheckStatus {
+    /// 已是最新版本
+    UpToDate,
+    /// 检查失败，携带错误描述
+    Error(String),
+}
+
 /// 将 `CoreError` 转换为已本地化的错误消息。
 ///
 /// 错误类型前缀通过 `t!()` 翻译，底层技术性错误原文作为细节保留
@@ -911,6 +924,81 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             save_settings(app);
             Task::none()
         }
+
+        // ── 触发更新检查 ──
+        Message::CheckForUpdates => {
+            if app.checking_update {
+                return Task::none();
+            }
+            log::info!(
+                "Checking for updates (current version: {})",
+                crate::constants::APP_VERSION
+            );
+            app.checking_update = true;
+            app.update_dismissed = false;
+            app.update_check_status = None;
+            Task::perform(
+                async move {
+                    s3dm_core::update_check::check_update(crate::constants::APP_VERSION).await
+                },
+                |r| Message::UpdateCheckResult(r.map_err(|e| e.to_string()), false),
+            )
+        }
+
+        // ── 更新检查结果 ──
+        Message::UpdateCheckResult(result, is_auto) => {
+            app.checking_update = false;
+            match result {
+                Ok(Some(info)) => {
+                    log::info!("Update available: {}", info.version);
+                    app.update_info = Some(info);
+                    app.update_dismissed = false;
+                    // 发现新版本：清除上一次的轻量结论，避免与顶部栏重复
+                    app.update_check_status = None;
+                }
+                Ok(None) => {
+                    log::info!("Already up to date");
+                    if is_auto {
+                        // 自动检查静默，不写任何提示
+                    } else {
+                        // 手动检查：在设置面板内反馈「已是最新」
+                        app.update_check_status = Some(UpdateCheckStatus::UpToDate);
+                    }
+                }
+                Err(e) => {
+                    log::warn!("Update check failed: {}", e);
+                    if is_auto {
+                        // 自动检查静默，避免噪声
+                    } else {
+                        // 手动检查：在设置面板内反馈错误
+                        app.update_check_status = Some(UpdateCheckStatus::Error(e));
+                    }
+                }
+            }
+            Task::none()
+        }
+
+        // ── 关闭更新提示栏 ──
+        Message::DismissUpdateNotice => {
+            app.update_dismissed = true;
+            Task::none()
+        }
+
+        // ── 打开发布页 ──
+        Message::OpenReleasePage => {
+            if let Some(info) = &app.update_info {
+                let url = info.html_url.clone();
+                let _ = open::that(url);
+            }
+            Task::none()
+        }
+
+        // ── 切换自动检查设置 ──
+        Message::ToggleAutoCheckUpdate(enabled) => {
+            app.auto_check_update = enabled;
+            save_settings(app);
+            Task::none()
+        }
     }
 }
 
@@ -922,6 +1010,7 @@ fn save_settings(app: &App) {
         theme: app.current_theme_name.clone(),
         language: rust_i18n::locale().to_string(),
         download_dir: app.download_dir.clone(),
+        auto_check_update: app.auto_check_update,
     };
     if let Err(e) = settings.save() {
         log::error!("Failed to save settings: {}", e);

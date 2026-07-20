@@ -4,11 +4,13 @@
 //! 删除与元数据查询等功能。模块划分：
 //! - [`types`]：公共数据结构与错误类型；
 //! - [`http`]：HTTP 连接器与 TLS 校验控制；
-//! - [`client`]：`S3Manager` 核心实现。
+//! - [`client`]：`S3Manager` 核心实现；
+//! - [`update_check`]：GitHub Releases 版本检查。
 
 mod client;
 mod http;
 mod types;
+pub mod update_check;
 
 pub use client::S3Manager;
 pub use types::{CoreError, ObjectListResult, S3Bucket, S3Object};

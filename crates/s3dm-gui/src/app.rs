@@ -85,6 +85,16 @@ pub struct App {
     pub theme: Theme,
     /// 当前主题名称
     pub current_theme_name: String,
+    /// 可用更新信息（None 表示无更新或尚未检查），驱动顶部更新提示栏
+    pub update_info: Option<s3dm_core::update_check::ReleaseInfo>,
+    /// 是否正在检查更新（用于按钮/状态栏 loading 态）
+    pub checking_update: bool,
+    /// 是否已在本次会话忽略更新提示（关闭顶部栏后不再自动弹出）
+    pub update_dismissed: bool,
+    /// 设置项：启动时是否自动检查更新
+    pub auto_check_update: bool,
+    /// 最近一次更新检查的结论（用于设置面板内反馈，None 表示尚未检查）
+    pub update_check_status: Option<crate::update::UpdateCheckStatus>,
 }
 
 impl App {
@@ -164,6 +174,8 @@ pub fn boot() -> (App, Task<Message>) {
         settings.download_dir.clone()
     };
 
+    let auto_check_update = settings.auto_check_update;
+
     let app = App {
         config_store: ConfigStore::new(),
         s3_manager: None,
@@ -199,6 +211,21 @@ pub fn boot() -> (App, Task<Message>) {
         show_settings: false,
         theme,
         current_theme_name,
+        update_info: None,
+        checking_update: false,
+        update_dismissed: false,
+        auto_check_update,
+        update_check_status: None,
     };
-    (app, Task::none())
+
+    // 若开启自动检查，启动后在后台静默检查一次更新
+    let task = if auto_check_update {
+        Task::perform(
+            async move { s3dm_core::update_check::check_update(constants::APP_VERSION).await },
+            |r| Message::UpdateCheckResult(r.map_err(|e| e.to_string()), true),
+        )
+    } else {
+        Task::none()
+    };
+    (app, task)
 }

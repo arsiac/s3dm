@@ -21,6 +21,14 @@ pub struct AppSettings {
     pub language: String,
     /// 默认下载目录
     pub download_dir: String,
+    /// 启动时是否自动检查更新（`#[serde(default)]` 兼容旧 settings.json）
+    #[serde(default = "default_true")]
+    pub auto_check_update: bool,
+}
+
+/// 返回布尔默认值 `true`，用于 `#[serde(default)]` 字段。
+fn default_true() -> bool {
+    true
 }
 
 impl Default for AppSettings {
@@ -31,6 +39,7 @@ impl Default for AppSettings {
             download_dir: dirs::download_dir()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default(),
+            auto_check_update: true,
         }
     }
 }

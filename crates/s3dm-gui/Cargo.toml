@@ -15,3 +15,4 @@ chrono = { workspace = true }
 log = { workspace = true }
 rust-i18n = { workspace = true }
 sys-locale = { workspace = true }
+open = { workspace = true }

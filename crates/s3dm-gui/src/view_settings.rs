@@ -6,7 +6,7 @@
 use iced::{
     Alignment, Border, Element, Length, Padding,
     widget::{
-        Theme, button, column, container, image, pick_list, progress_bar, row, rule, svg,
+        Theme, button, checkbox, column, container, image, pick_list, progress_bar, row, rule, svg,
         svg::Handle as SvgHandle, text, text_input,
     },
 };
@@ -16,6 +16,7 @@ use crate::app::App;
 use crate::constants;
 use crate::icon;
 use crate::message::Message;
+use crate::update::UpdateCheckStatus;
 
 /// 渲染设置面板（不含遮罩 overlay）
 ///
@@ -98,6 +99,77 @@ pub fn view_settings(app: &App) -> Element<'_, Message> {
         text(t!("download_dir").to_string()).size(16),
         text_input(&t!("download_dir_hint"), &app.download_dir)
             .on_input(Message::DownloadDirChanged),
+        rule::horizontal(1),
+        // 更新检查：手动检查按钮 + 自动检查开关
+        {
+            let check_label = if app.checking_update {
+                t!("update_checking").to_string()
+            } else {
+                t!("update_check_now").to_string()
+            };
+            let check_btn = button(text(check_label).size(13))
+                .style(btn_style)
+                .on_press_maybe(if app.checking_update {
+                    None
+                } else {
+                    Some(Message::CheckForUpdates)
+                });
+
+            let auto_box = checkbox(app.auto_check_update)
+                .label(t!("update_auto_check").to_string())
+                .on_toggle(Message::ToggleAutoCheckUpdate);
+
+            // 当前更新状态提示（有新版本 / 已是最新 / 出错 / 未知）
+            let warn_color = iced::Color::from_rgb(0.9, 0.55, 0.2);
+            let status: Element<Message> = match &app.update_check_status {
+                Some(UpdateCheckStatus::UpToDate) => text(t!("update_no_update").to_string())
+                    .size(12)
+                    .color(p.text_secondary)
+                    .into(),
+                Some(UpdateCheckStatus::Error(e)) => {
+                    text(t!("update_error_in_panel", error = e.as_str()).to_string())
+                        .size(12)
+                        .color(warn_color)
+                        .into()
+                }
+                None => {
+                    if let Some(info) = &app.update_info {
+                        if app.update_dismissed {
+                            text(
+                                t!("update_available_short", version = info.version.as_str())
+                                    .to_string(),
+                            )
+                            .size(12)
+                            .color(p.text_secondary)
+                            .into()
+                        } else {
+                            button(text(t!("update_view").to_string()).size(12))
+                                .style(btn_style)
+                                .on_press(Message::OpenReleasePage)
+                                .into()
+                        }
+                    } else {
+                        text(t!("update_unknown").to_string())
+                            .size(12)
+                            .color(p.text_secondary)
+                            .into()
+                    }
+                }
+            };
+
+            column![
+                row![
+                    check_btn,
+                    container(status)
+                        .width(Length::Fill)
+                        .align_x(Alignment::End)
+                ]
+                .spacing(10)
+                .align_y(Alignment::Center),
+                auto_box
+            ]
+            .spacing(8)
+        },
         rule::horizontal(1),
         // 关于：程序基础信息（图标 + 名称 + 版本 + 描述 + 作者/许可证）
         {

@@ -145,6 +145,67 @@ pub fn view(app: &App) -> Element<'_, Message> {
         elements.push(success_bar.into());
     }
 
+    // ── 更新提示栏 ──
+    if let (Some(info), false) = (&app.update_info, app.update_dismissed) {
+        let hover_bg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.15);
+        let icon_btn_style = move |_: &Theme, s: button::Status| -> button::Style {
+            let (bg, border) = match s {
+                button::Status::Hovered | button::Status::Pressed => (
+                    Some(iced::Background::Color(hover_bg)),
+                    Border {
+                        color: hover_bg,
+                        width: 1.0,
+                        radius: 4.0.into(),
+                    },
+                ),
+                _ => (None, Border::default().width(0)),
+            };
+            button::Style {
+                background: bg,
+                border,
+                text_color: iced::Color::WHITE,
+                shadow: iced::Shadow::default(),
+                ..Default::default()
+            }
+        };
+
+        let dismiss = svg(SvgHandle::from_memory(icon::ICON_DISMISS.to_vec()))
+            .width(Length::Fixed(16.0))
+            .height(Length::Fixed(16.0))
+            .style(|_: &Theme, _: svg::Status| svg::Style {
+                color: Some(iced::Color::WHITE),
+            });
+
+        let view_btn = button(text(t!("update_view").to_string()).size(13))
+            .style(icon_btn_style)
+            .on_press(Message::OpenReleasePage);
+
+        let update_bar = container(
+            row![
+                text(t!("update_available", version = info.version.as_str()).to_string())
+                    .size(13)
+                    .color(iced::Color::WHITE),
+                space::horizontal(),
+                view_btn,
+                button(dismiss)
+                    .style(icon_btn_style)
+                    .on_press(Message::DismissUpdateNotice),
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center),
+        )
+        .padding([6, 10])
+        .style(|_: &Theme| container::Style {
+            background: Some(iced::Background::Color(iced::Color::from_rgb(
+                0.16, 0.45, 0.78,
+            ))),
+            text_color: Some(iced::Color::WHITE),
+            ..Default::default()
+        })
+        .width(Length::Fill);
+        elements.push(update_bar.into());
+    }
+
     // ── 主布局 ──
     let side_panel = view_left_panel(app);
     let right_area = view_right_content(app);

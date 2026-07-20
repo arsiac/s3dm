@@ -128,3 +128,15 @@ app_description: "一款跨平台的圖形化用戶端，用於管理 S3 儲存�
 version: "版本"
 author: "作者"
 license: "許可證"
+
+# 更新檢查
+update_available: "發現新版本 %{version}"
+update_available_short: "新版本：%{version}"
+update_check_now: "檢查更新"
+update_checking: "檢查中..."
+update_view: "查看"
+update_auto_check: "啟動時自動檢查更新"
+update_no_update: "已是最新版本"
+update_unknown: "更新狀態未知"
+update_error: "檢查更新失敗：%{error}"
+update_error_in_panel: "檢查失敗：%{error}"
