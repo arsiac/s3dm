@@ -337,9 +337,6 @@ pub fn copy_move_dialog<'a>(app: &'a App, state: &'a crate::app::CopyMoveState) 
     overlay_wrap(content)
 }
 
-/// 通用半透明遮罩 + 居中容器包装
-///
-
 /// 渲染对象属性对话框
 pub fn properties_dialog<'a>(app: &'a App, key: &'a str) -> Element<'a, Message> {
     let p = constants::custom_palette(&app.theme);
