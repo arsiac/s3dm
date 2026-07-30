@@ -65,6 +65,8 @@ pub enum Message {
     DeleteObject(String),
     /// 切换某个对象的"更多"菜单开合（None 关闭所有菜单）
     ToggleObjectMenu(Option<String>),
+    /// 切换某个文件夹的"更多"菜单开合（None 关闭所有菜单）
+    TogglePrefixMenu(Option<String>),
     /// 提示删除整个前缀确认
     DeletePrefix(String),
     /// 打开上传文件选择器

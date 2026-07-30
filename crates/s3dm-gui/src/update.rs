@@ -470,6 +470,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         // ── 预览对象 ──
         Message::PreviewObject(key) => {
             app.open_menu_key = None;
+            app.open_prefix_menu = None;
             log::info!("Previewing object: {}", key);
             let bucket = match &app.current_bucket {
                 Some(b) => b.clone(),
@@ -558,16 +559,25 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
 
-        // ── 切换对象的"更多"菜单 ──
-        Message::ToggleObjectMenu(key) => {
-            app.open_menu_key = key;
+       // ── 切换对象的"更多"菜单 ──
+       Message::ToggleObjectMenu(key) => {
+            app.open_prefix_menu = None;
+           app.open_menu_key = key;
+           Task::none()
+       }
+
+        // ── 切换文件夹的"更多"菜单 ──
+        Message::TogglePrefixMenu(key) => {
+            app.open_menu_key = None;
+            app.open_prefix_menu = key;
             Task::none()
         }
 
-        // ── 提示删除对象确认 ──
-        Message::DeleteObject(key) => {
+       // ── 提示删除对象确认 ──
+       Message::DeleteObject(key) => {
             log::info!("Prompting delete object confirmation: {}", key);
             app.open_menu_key = None;
+            app.open_prefix_menu = None;
             app.pending_delete_object = Some(key);
             Task::none()
         }
@@ -644,7 +654,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         Message::RenameObject(key) => {
             log::info!("Opening rename dialog for: {}", key);
             app.open_menu_key = None;
-            let name = key.rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.clone());
+            app.open_prefix_menu = None;
+            let name = key.trim_end_matches('/').rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.trim_end_matches('/').to_string());
             app.rename_input = Some((key, name));
             Task::none()
         }
@@ -681,6 +692,12 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             };
             let prefix = app.current_prefix.clone();
             let new_key = format!("{}{}", prefix, trimmed);
+            // 如果源是文件夹（尾部斜杠），目标也保留尾部斜杠
+            let new_key = if old_key.ends_with('/') {
+                format!("{}/", new_key.trim_end_matches('/'))
+            } else {
+                new_key
+            };
             let s3 = match &app.s3_manager {
                 Some(s) => s.clone(),
                 None => return Task::none(),
@@ -690,8 +707,13 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             log::info!("Renaming object: {} -> {}", old_key, new_key);
             Task::perform(
                 async move {
-                    // 重命名 = CopyObject + DeleteObject（使用 move_object）
-                    s3.move_object(&bucket, &old_key, &new_key).await
+                    if old_key.ends_with('/') {
+                        // 文件夹重命名：递归移动所有子文件
+                        s3.move_prefix(&bucket, &old_key, &new_key).await.map(|_| ())
+                    } else {
+                        // 重命名 = CopyObject + DeleteObject（使用 move_object）
+                        s3.move_object(&bucket, &old_key, &new_key).await
+                    }
                 },
                 Message::CopyMoveResult,
             )
@@ -706,7 +728,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         Message::CopyObject(key) => {
             log::info!("Opening copy dialog for: {}", key);
             app.open_menu_key = None;
-            let name = key.rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.clone());
+            app.open_prefix_menu = None;
+            let name = key.trim_end_matches('/').rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.trim_end_matches('/').to_string());
             let prefix = app.current_prefix.clone();
             let bucket = app.current_bucket.clone();
             let s3 = app.s3_manager.clone();
@@ -726,7 +749,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         Message::MoveObject(key) => {
             log::info!("Opening move dialog for: {}", key);
             app.open_menu_key = None;
-            let name = key.rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.clone());
+            app.open_prefix_menu = None;
+            let name = key.trim_end_matches('/').rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.trim_end_matches('/').to_string());
             let prefix = app.current_prefix.clone();
             let bucket = app.current_bucket.clone();
             let s3 = app.s3_manager.clone();
@@ -829,6 +853,12 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
 
             let target_prefix = normalize_prefix(&raw_prefix);
             let destination_key = format!("{}{}", target_prefix, new_name);
+            // 如果源是文件夹（尾部斜杠），目标也保留尾部斜杠
+            let destination_key = if source_key.ends_with('/') {
+                format!("{}/", destination_key.trim_end_matches('/'))
+            } else {
+                destination_key
+            };
 
             if destination_key == source_key {
                 if let Some(ref mut state) = app.copy_move_input {
@@ -853,12 +883,24 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             log::info!("{:?} object: {} -> {}", mode, source_key, destination_key);
             Task::perform(
                 async move {
-                    match mode {
-                        crate::app::CopyMoveMode::Copy => {
-                            s3.copy_object(&bucket, &source_key, &destination_key).await
+                    if source_key.ends_with('/') {
+                        // 文件夹操作：递归复制/移动所有子文件
+                        match mode {
+                            crate::app::CopyMoveMode::Copy => {
+                                s3.copy_prefix(&bucket, &source_key, &destination_key).await.map(|_| ())
+                            }
+                            crate::app::CopyMoveMode::Move => {
+                                s3.move_prefix(&bucket, &source_key, &destination_key).await.map(|_| ())
+                            }
                         }
-                        crate::app::CopyMoveMode::Move => {
-                            s3.move_object(&bucket, &source_key, &destination_key).await
+                    } else {
+                        match mode {
+                            crate::app::CopyMoveMode::Copy => {
+                                s3.copy_object(&bucket, &source_key, &destination_key).await
+                            }
+                            crate::app::CopyMoveMode::Move => {
+                                s3.move_object(&bucket, &source_key, &destination_key).await
+                            }
                         }
                     }
                 },
@@ -901,6 +943,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         }
         Message::DeletePrefix(prefix) => {
             log::info!("Prompting delete prefix confirmation: {}", prefix);
+            app.open_prefix_menu = None;
             app.pending_delete_prefix = Some(prefix);
             Task::none()
         }
@@ -1011,6 +1054,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         // ── 下载对象 ──
         Message::DownloadObject(key) => {
             app.open_menu_key = None;
+            app.open_prefix_menu = None;
             let bucket = match &app.current_bucket {
                 Some(b) => b.clone(),
                 None => return Task::none(),

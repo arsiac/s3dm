@@ -854,6 +854,135 @@ impl S3Manager {
         Ok(())
     }
 
+
+    /// 递归复制前缀下所有对象到目标前缀（同一 bucket 内）。
+    ///
+    /// 列出 `source_prefix` 下的所有对象（递归，不使用分隔符），
+    /// 将每个对象的 Key 中的源前缀替换为目标前缀后逐个调用 CopyObject。
+    /// 返回成功复制的对象数量。
+    pub async fn copy_prefix(
+        &self,
+        bucket: &str,
+        source_prefix: &str,
+        target_prefix: &str,
+    ) -> Result<u64, CoreError> {
+        let source_prefix = if source_prefix.is_empty() || source_prefix.ends_with('/') {
+            source_prefix.to_string()
+        } else {
+            format!("{}/", source_prefix)
+        };
+        let target_prefix = if target_prefix.is_empty() || target_prefix.ends_with('/') {
+            target_prefix.to_string()
+        } else {
+            format!("{}/", target_prefix)
+        };
+
+        log::info!(
+            "Copying prefix bucket={} source={} target={}",
+            bucket,
+            source_prefix,
+            target_prefix
+        );
+
+        self.run_with_retry("copy_prefix", move |client| {
+            let sp = source_prefix.clone();
+            let tp = target_prefix.clone();
+            async move {
+            let mut token: Option<String> = None;
+            let mut count: u64 = 0;
+
+            loop {
+                let mut req = client
+                    .list_objects_v2()
+                    .bucket(bucket)
+                    .prefix(&sp)
+                    .max_keys(1000);
+                if let Some(ref t) = token {
+                    req = req.continuation_token(t);
+                }
+                let resp = req.send().await.map_err(|e| {
+                    CoreError::S3(format!("list objects failed: {}", e))
+                })?;
+
+                for obj in resp.contents() {
+                    if let Some(key) = obj.key() {
+                        let suffix = key.strip_prefix(&sp).unwrap_or(key);
+                        let new_key = format!("{}{}", tp, suffix);
+                        log::debug!("Copying {} -> {}", key, new_key);
+
+                        let copy_source = format!("{}/{}", bucket, key);
+                        client
+                            .copy_object()
+                            .bucket(bucket)
+                            .copy_source(copy_source)
+                            .key(&new_key)
+                            .send()
+                            .await
+                            .map_err(|e| {
+                                CoreError::S3(format!(
+                                    "failed to copy {} -> {}: {}",
+                                    key, new_key, e
+                                ))
+                            })?;
+                        count += 1;
+                    }
+                }
+
+                if !resp.is_truncated().unwrap_or(false) {
+                    break;
+                }
+                token = resp.next_continuation_token().map(|s| s.to_string());
+            }
+
+            log::info!(
+                "Successfully copied {} objects from {} to {}",
+                count,
+                sp,
+                tp
+            );
+            Ok(count)
+            }
+        })
+        .await
+    }
+
+    /// 递归移动前缀下所有对象到目标前缀（同一 bucket 内）。
+    ///
+    /// 先调用 [`copy_prefix`] 复制所有对象，复制成功后删除源前缀。
+    /// 若复制成功但删除失败，记录警告日志但不回滚（S3 无事务支持）。
+    pub async fn move_prefix(
+        &self,
+        bucket: &str,
+        source_prefix: &str,
+        target_prefix: &str,
+    ) -> Result<u64, CoreError> {
+        log::info!(
+            "Moving prefix bucket={} source={} target={}",
+            bucket,
+            source_prefix,
+            target_prefix
+        );
+        let count = self.copy_prefix(bucket, source_prefix, target_prefix).await?;
+        if count > 0
+            && let Err(e) = self.delete_prefix(bucket, source_prefix).await
+        {
+            log::warn!(
+                "Objects copied but failed to delete source prefix bucket={} prefix={}: {}. Manual cleanup may be needed.",
+                bucket,
+                source_prefix,
+                e
+            );
+            return Err(e);
+        }
+        log::info!(
+            "Successfully moved {} objects from {} to {}",
+            count,
+            source_prefix,
+            target_prefix
+        );
+        Ok(count)
+    }
+
     pub async fn head_object(&self, bucket: &str, key: &str) -> Result<S3Object, CoreError> {
         log::debug!("Querying object metadata bucket={} key={}", bucket, key);
         self.run_with_retry("head_object", move |client| async move {

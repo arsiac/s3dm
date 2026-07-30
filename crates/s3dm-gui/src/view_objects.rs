@@ -154,14 +154,123 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
             .unwrap_or(prefix)
             .trim_end_matches('/');
 
-        let folder_delete_btn = button(
-            svg(SvgHandle::from_memory(icon::ICON_DELETE.to_vec()))
+
+        // 文件夹"更多"菜单：重命名、复制、移动、删除
+        let menu_item_style = move |_: &Theme, s: button::Status| -> button::Style {
+            let hbg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.08);
+            let (bg, border) = match s {
+                button::Status::Hovered | button::Status::Pressed => (
+                    Some(iced::Background::Color(hbg)),
+                    Border {
+                        color: hbg,
+                        width: 1.0,
+                        radius: 4.0.into(),
+                    },
+                ),
+                _ => (None, Border::default().width(0)),
+            };
+            button::Style {
+                background: bg,
+                border,
+                text_color: p.text_secondary,
+                shadow: iced::Shadow::default(),
+                ..Default::default()
+            }
+        };
+        let menu_svg_style = svg::Style {
+            color: Some(p.text_secondary),
+        };
+
+        let rename_item = button(
+            row![
+                svg(SvgHandle::from_memory(icon::ICON_RENAME.to_vec()))
+                    .width(Length::Fixed(16.0))
+                    .height(Length::Fixed(16.0))
+                    .style(move |_: &Theme, _: svg::Status| menu_svg_style),
+                text(t!("rename").to_string()).size(14).color(p.text_secondary),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .style(menu_item_style)
+        .width(Length::Fill)
+        .on_press(Message::RenameObject(prefix.clone()));
+
+        let copy_item = button(
+            row![
+                svg(SvgHandle::from_memory(icon::ICON_COPY.to_vec()))
+                    .width(Length::Fixed(16.0))
+                    .height(Length::Fixed(16.0))
+                    .style(move |_: &Theme, _: svg::Status| menu_svg_style),
+                text(t!("copy_to").to_string()).size(14).color(p.text_secondary),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .style(menu_item_style)
+        .width(Length::Fill)
+        .on_press(Message::CopyObject(prefix.clone()));
+
+        let move_item = button(
+            row![
+                svg(SvgHandle::from_memory(icon::ICON_COPY_MOVE.to_vec()))
+                    .width(Length::Fixed(16.0))
+                    .height(Length::Fixed(16.0))
+                    .style(move |_: &Theme, _: svg::Status| menu_svg_style),
+                text(t!("move_to").to_string()).size(14).color(p.text_secondary),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .style(menu_item_style)
+        .width(Length::Fill)
+        .on_press(Message::MoveObject(prefix.clone()));
+
+        let delete_item = button(
+            row![
+                svg(SvgHandle::from_memory(icon::ICON_DELETE.to_vec()))
+                    .width(Length::Fixed(16.0))
+                    .height(Length::Fixed(16.0))
+                    .style(move |_: &Theme, _: svg::Status| menu_svg_style),
+                text(t!("delete").to_string()).size(14).color(p.text_secondary),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .style(menu_item_style)
+        .width(Length::Fill)
+        .on_press(Message::DeletePrefix(prefix.clone()));
+
+        let menu_overlay = container(column![rename_item, copy_item, move_item, delete_item].spacing(2))
+            .padding(4)
+            .style(|theme: &Theme| container::Style {
+                background: Some(iced::Background::Color(constants::custom_palette(theme).surface)),
+                border: Border {
+                    color: iced::Color::from_rgba(1.0, 1.0, 1.0, 0.12),
+                    width: 1.0,
+                    radius: 6.0.into(),
+                },
+                ..Default::default()
+            });
+
+        let more_btn = button(
+            svg(SvgHandle::from_memory(icon::ICON_MORE_VERTICAL.to_vec()))
                 .width(Length::Fixed(16.0))
                 .height(Length::Fixed(16.0))
                 .style(svg_style),
         )
         .style(icon_btn_style)
-        .on_press(Message::DeletePrefix(prefix.clone()));
+        .on_press(Message::TogglePrefixMenu(Some(prefix.clone())));
+
+        let folder_menu = DropDown::new(
+            more_btn,
+            menu_overlay,
+            app.open_prefix_menu.as_deref() == Some(prefix.as_str()),
+        )
+        .alignment(DropDownAlignment::End)
+        .offset(iced_aw::core::offset::Offset { x: 0.0, y: 4.0 })
+        .on_dismiss(Message::TogglePrefixMenu(None))
+        .width(Length::Fixed(140.0));
 
         items.push(
             button(
@@ -175,7 +284,7 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                     ]
                     .spacing(4)
                     .align_y(Alignment::Center),
-                    container(folder_delete_btn)
+                    container(folder_menu)
                         .width(Length::Fill)
                         .align_x(Alignment::End),
                 ]
