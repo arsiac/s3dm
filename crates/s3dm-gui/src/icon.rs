@@ -35,6 +35,11 @@ pub const ICON_CLOUD_LINK: &[u8] = include_bytes!("../icons/cloud-link-16-filled
 pub const ICON_CLOUD_DOWNLOAD: &[u8] = include_bytes!("../icons/cloud-arrow-down-16-filled.svg");
 pub const ICON_MORE_VERTICAL: &[u8] = include_bytes!("../icons/more-vertical-16-filled.svg");
 pub const ICON_PREVIEW: &[u8] = include_bytes!("../icons/preview-link-16-filled.svg");
+/// 文件操作图标
+pub const ICON_RENAME: &[u8] = include_bytes!("../icons/rename-16-filled.svg");
+pub const ICON_COPY: &[u8] = include_bytes!("../icons/copy-16-filled.svg");
+pub const ICON_COPY_MOVE: &[u8] = include_bytes!("../icons/copy-move-16-filled.svg");
+pub const ICON_FOLDER_OPEN: &[u8] = include_bytes!("../icons/folder-open-16-filled.svg");
 
 /// 根据文件名返回对应的文件类型图标字节。
 ///

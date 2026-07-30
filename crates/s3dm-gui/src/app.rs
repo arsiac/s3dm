@@ -13,6 +13,29 @@ use crate::constants;
 use crate::message::Message;
 use crate::preview::PreviewContent;
 
+/// 复制/移动操作模式
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CopyMoveMode {
+    Copy,
+    Move,
+}
+
+/// 复制/移动对话框状态
+#[derive(Debug, Clone)]
+pub struct CopyMoveState {
+    pub mode: CopyMoveMode,
+    pub source_key: String,
+    /// 对话框内错误提示（而不是主窗口错误条）
+    pub error: Option<String>,
+    /// 当前目标路径前缀
+    pub target_prefix: String,
+    /// 当前目标前缀下的子文件夹列表
+    pub available_prefixes: Vec<String>,
+    /// 是否正在加载子文件夹列表
+    pub is_loading_prefixes: bool,
+    pub new_name: String,
+}
+
 /// 应用主状态结构体，遵循 Elm 架构的 Model 层
 ///
 /// 包含连接管理、桶浏览、对象 CRUD、UI 状态等全部应用数据。
@@ -81,6 +104,10 @@ pub struct App {
     pub preview_editor_content: Option<iced::widget::text_editor::Content<iced::Renderer>>,
     /// 新建文件夹输入框内容
     pub new_folder_input: Option<String>,
+    /// 重命名对话框：(old_key, current_name)，None 表示关闭
+    pub rename_input: Option<(String, String)>,
+    /// 复制/移动对话框状态，None 表示关闭
+    pub copy_move_input: Option<CopyMoveState>,
     /// 是否显示设置面板
     pub show_settings: bool,
     /// 当前应用主题
@@ -211,6 +238,8 @@ pub fn boot() -> (App, Task<Message>) {
         preview_loading: false,
         preview_editor_content: None,
         new_folder_input: None,
+        rename_input: None,
+        copy_move_input: None,
         show_settings: false,
         theme,
         current_theme_name,

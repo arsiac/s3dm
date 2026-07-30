@@ -12,7 +12,7 @@ use crate::constants::AVAILABLE_THEMES;
 use crate::message::Message;
 use rust_i18n::t;
 use s3dm_config::ConfigError;
-use s3dm_core::CoreError;
+use s3dm_core::{CoreError, S3Manager};
 
 /// 最近一次更新检查的结论，用于在设置面板内就地反馈。
 ///
@@ -640,6 +640,265 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         }
 
         // ── 提示删除前缀确认 ──
+        // ── 重命名 ──
+        Message::RenameObject(key) => {
+            log::info!("Opening rename dialog for: {}", key);
+            app.open_menu_key = None;
+            let name = key.rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.clone());
+            app.rename_input = Some((key, name));
+            Task::none()
+        }
+
+        Message::RenameInputChanged(val) => {
+            if let Some(ref mut input) = app.rename_input {
+                input.1 = val;
+            }
+            Task::none()
+        }
+
+        Message::ConfirmRename => {
+            let (old_key, new_name) = match &app.rename_input {
+                Some((k, n)) => (k.clone(), n.clone()),
+                _ => return Task::none(),
+            };
+            let trimmed = new_name.trim().to_string();
+            if trimmed.is_empty() {
+                app.error_message = Some(t!("rename_error_empty").to_string());
+                return Task::none();
+            }
+            if trimmed.contains('/') {
+                app.error_message = Some(t!("rename_error_slash").to_string());
+                return Task::none();
+            }
+            let old_name = old_key.rsplit_once('/').map(|(_, n)| n).unwrap_or(&old_key);
+            if trimmed == old_name {
+                app.error_message = Some(t!("rename_error_same_name").to_string());
+                return Task::none();
+            }
+            let bucket = match &app.current_bucket {
+                Some(b) => b.clone(),
+                None => return Task::none(),
+            };
+            let prefix = app.current_prefix.clone();
+            let new_key = format!("{}{}", prefix, trimmed);
+            let s3 = match &app.s3_manager {
+                Some(s) => s.clone(),
+                None => return Task::none(),
+            };
+            app.rename_input = None;
+            app.is_loading = true;
+            log::info!("Renaming object: {} -> {}", old_key, new_key);
+            Task::perform(
+                async move {
+                    // 重命名 = CopyObject + DeleteObject（使用 move_object）
+                    s3.move_object(&bucket, &old_key, &new_key).await
+                },
+                Message::CopyMoveResult,
+            )
+        }
+
+        Message::CancelRename => {
+            app.rename_input = None;
+            Task::none()
+        }
+
+        // ── 复制 / 移动 ──
+        Message::CopyObject(key) => {
+            log::info!("Opening copy dialog for: {}", key);
+            app.open_menu_key = None;
+            let name = key.rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.clone());
+            let prefix = app.current_prefix.clone();
+            let bucket = app.current_bucket.clone();
+            let s3 = app.s3_manager.clone();
+            app.copy_move_input = Some(crate::app::CopyMoveState {
+                mode: crate::app::CopyMoveMode::Copy,
+                source_key: key,
+                target_prefix: prefix,
+                error: None,
+                available_prefixes: Vec::new(),
+                is_loading_prefixes: true,
+                new_name: name,
+            });
+            let p = app.current_prefix.clone();
+            load_target_prefixes(bucket, s3, p)
+        }
+
+        Message::MoveObject(key) => {
+            log::info!("Opening move dialog for: {}", key);
+            app.open_menu_key = None;
+            let name = key.rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.clone());
+            let prefix = app.current_prefix.clone();
+            let bucket = app.current_bucket.clone();
+            let s3 = app.s3_manager.clone();
+            app.copy_move_input = Some(crate::app::CopyMoveState {
+                mode: crate::app::CopyMoveMode::Move,
+                source_key: key,
+                target_prefix: prefix,
+                error: None,
+                available_prefixes: Vec::new(),
+                is_loading_prefixes: true,
+                new_name: name,
+            });
+            let p = app.current_prefix.clone();
+            load_target_prefixes(bucket, s3, p)
+        }
+
+        Message::CopyMoveInputChanged { field, value } => {
+                if let Some(ref mut state) = app.copy_move_input
+                    && field.as_str() == "new_name"
+                {
+                    state.new_name = value;
+                }
+            Task::none()
+        }
+
+        Message::TargetPrefixInputChanged(prefix) => {
+            if let Some(ref mut state) = app.copy_move_input {
+                state.target_prefix = prefix.clone();
+                state.is_loading_prefixes = true;
+            }
+            let bucket = app.current_bucket.clone();
+            let s3 = app.s3_manager.clone();
+            load_target_prefixes(bucket, s3, prefix)
+        }
+
+        Message::NavigateIntoTargetFolder(folder) => {
+            if let Some(ref mut state) = app.copy_move_input {
+                state.target_prefix = folder.clone();
+                state.is_loading_prefixes = true;
+            }
+            let bucket = app.current_bucket.clone();
+            let s3 = app.s3_manager.clone();
+            load_target_prefixes(bucket, s3, folder)
+        }
+
+        Message::NavigateUpTargetFolder => {
+            let new_prefix;
+            if let Some(ref mut state) = app.copy_move_input {
+                let trimmed = state.target_prefix.trim_end_matches('/');
+                let mut parts: Vec<&str> = trimmed.split('/').collect();
+                parts.pop();
+                new_prefix = if parts.is_empty() {
+                    String::new()
+                } else {
+                    format!("{}/", parts.join("/"))
+                };
+                state.target_prefix = new_prefix.clone();
+                state.is_loading_prefixes = true;
+            } else {
+                new_prefix = String::new();
+            }
+            let bucket = app.current_bucket.clone();
+            let s3 = app.s3_manager.clone();
+            load_target_prefixes(bucket, s3, new_prefix)
+        }
+
+        Message::TargetPrefixesResult(result) => {
+            if let Some(ref mut state) = app.copy_move_input {
+                state.is_loading_prefixes = false;
+                match result {
+                    Ok(prefixes) => {
+                        state.available_prefixes = prefixes;
+                    }
+                    Err(e) => {
+                        log::error!("Failed to load target prefixes: {}", e);
+                        state.available_prefixes.clear();
+                    }
+                }
+            }
+            Task::none()
+        }
+
+        Message::ConfirmCopyMove => {
+            let (raw_prefix, new_name, source_key, mode) = match &app.copy_move_input {
+                Some(s) => (
+                    s.target_prefix.trim().to_string(),
+                    s.new_name.trim().to_string(),
+                    s.source_key.clone(),
+                    s.mode.clone(),
+                ),
+                _ => return Task::none(),
+            };
+
+            if new_name.is_empty() {
+                if let Some(ref mut state) = app.copy_move_input {
+                    state.error = Some(t!("rename_error_empty").to_string());
+                }
+                return Task::none();
+            }
+
+            let target_prefix = normalize_prefix(&raw_prefix);
+            let destination_key = format!("{}{}", target_prefix, new_name);
+
+            if destination_key == source_key {
+                if let Some(ref mut state) = app.copy_move_input {
+                    state.error = Some(t!("copy_same_path").to_string());
+                }
+                return Task::none();
+            }
+
+            let bucket = match &app.current_bucket {
+                Some(b) => b.clone(),
+                None => return Task::none(),
+            };
+            let s3 = match &app.s3_manager {
+                Some(s) => s.clone(),
+                None => return Task::none(),
+            };
+
+            if let Some(ref mut state) = app.copy_move_input {
+                state.error = None;
+            }
+            app.is_loading = true;
+            log::info!("{:?} object: {} -> {}", mode, source_key, destination_key);
+            Task::perform(
+                async move {
+                    match mode {
+                        crate::app::CopyMoveMode::Copy => {
+                            s3.copy_object(&bucket, &source_key, &destination_key).await
+                        }
+                        crate::app::CopyMoveMode::Move => {
+                            s3.move_object(&bucket, &source_key, &destination_key).await
+                        }
+                    }
+                },
+                Message::CopyMoveResult,
+            )
+        }
+
+        Message::CancelCopyMove => {
+            app.copy_move_input = None;
+            Task::none()
+        }
+
+        // ── 复制/移动操作结果 ──
+        Message::CopyMoveResult(result) => {
+            app.is_loading = false;
+            match result {
+                Ok(()) => {
+                    log::info!("Copy/move operation succeeded");
+                    app.copy_move_input = None;
+                    return app.load_objects();
+                }
+                Err(e) => {
+                    log::error!("Copy/move operation failed: {}", e);
+                    // 错误显示在对话框内，不清除对话框
+                    if let Some(ref mut state) = app.copy_move_input {
+                        state.error = Some(
+                            match state.mode {
+                                crate::app::CopyMoveMode::Copy => {
+                                    t!("copy_failed", error = core_error_message(&e)).to_string()
+                                }
+                                crate::app::CopyMoveMode::Move => {
+                                    t!("move_failed", error = core_error_message(&e)).to_string()
+                                }
+                            }
+                        );
+                    }
+                }
+            }
+            Task::none()
+        }
         Message::DeletePrefix(prefix) => {
             log::info!("Prompting delete prefix confirmation: {}", prefix);
             app.pending_delete_prefix = Some(prefix);
@@ -1011,6 +1270,23 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
     }
 }
 
+/// 规范化 S3 路径前缀。
+///
+/// - `""` 和 `"/"` → `""`（根目录）
+/// - `"images/"` → `"images/"`（保留尾随斜杠）
+/// - `"images"` → `"images/"`（补尾随斜杠）
+/// - 自动 trim 两端空白字符
+fn normalize_prefix(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed == "/" {
+        String::new()
+    } else if trimmed.ends_with('/') {
+        trimmed.to_string()
+    } else {
+        format!("{}/", trimmed)
+    }
+}
+
 /// 将当前内存中的偏好设置（主题/语言/下载目录）持久化到 `settings.json`。
 ///
 /// 失败仅记录日志，不阻断交互（设置属于非关键偏好）。
@@ -1024,6 +1300,23 @@ fn save_settings(app: &App) {
     if let Err(e) = settings.save() {
         log::error!("Failed to save settings: {}", e);
     }
+}
+
+/// 加载复制/移动对话框中的目标前缀子文件夹列表
+fn load_target_prefixes(
+    bucket: Option<String>,
+    s3: Option<S3Manager>,
+    prefix: String,
+) -> Task<Message> {
+    Task::perform(
+        async move {
+            match (bucket, s3) {
+                (Some(b), Some(s)) => s.list_prefixes(&b, &prefix).await,
+                _ => Err(CoreError::Connection("No bucket or S3 manager".to_string())),
+            }
+        },
+        Message::TargetPrefixesResult,
+    )
 }
 
 /// 发起指定连接的 S3 连接并拉取桶列表
@@ -1154,5 +1447,49 @@ mod tests {
         std::fs::write(&candidate, b"x").unwrap();
         assert_eq!(unique_save_path(&p), dir.join("dup_2.txt"));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn normalize_prefix_empty_returns_empty() {
+        assert_eq!(normalize_prefix(""), "");
+    }
+
+    #[test]
+    fn normalize_prefix_slash_returns_empty() {
+        assert_eq!(normalize_prefix("/"), "");
+    }
+
+    #[test]
+    fn normalize_prefix_with_trailing_slash_preserved() {
+        assert_eq!(normalize_prefix("images/"), "images/");
+    }
+
+    #[test]
+    fn normalize_prefix_without_trailing_slash_appends() {
+        assert_eq!(normalize_prefix("images"), "images/");
+    }
+
+    #[test]
+    fn normalize_prefix_deep_path_preserved() {
+        assert_eq!(
+            normalize_prefix("images/2025/screenshots/"),
+            "images/2025/screenshots/"
+        );
+    }
+
+    #[test]
+    fn normalize_prefix_trims_whitespace() {
+        assert_eq!(normalize_prefix("  images/  "), "images/");
+    }
+
+    #[test]
+    fn normalize_prefix_root_display_preserved() {
+        // "/" 是 UI 中根目录的显示值，应和 "" 一样视为根
+        assert_eq!(normalize_prefix("/"), "");
+    }
+
+    #[test]
+    fn normalize_prefix_just_spaces_is_empty() {
+        assert_eq!(normalize_prefix("   "), "");
     }
 }

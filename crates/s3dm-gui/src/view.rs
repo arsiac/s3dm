@@ -267,6 +267,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
         stack_elements.push(view_dialogs::new_folder(app, input));
     }
 
+    // 重命名弹窗
+    if let Some((ref old_key, ref name)) = app.rename_input {
+        stack_elements.push(view_dialogs::rename_dialog(app, old_key, name));
+    }
+
+    // 复制/移动弹窗
+    if let Some(ref state) = app.copy_move_input {
+        stack_elements.push(view_dialogs::copy_move_dialog(app, state));
+    }
+
     // 删除前缀确认弹窗
     if let Some(ref prefix) = app.pending_delete_prefix {
         stack_elements.push(view_dialogs::delete_prefix(app, prefix));

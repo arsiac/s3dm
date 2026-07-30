@@ -92,6 +92,30 @@ field_secret_access_key: "Secret Access Key"
 new_folder_title: "新建文件夹"
 new_folder_placeholder: "文件夹名称"
 
+# 重命名
+rename: "重命名"
+rename_title: "重命名文件"
+rename_placeholder: "新文件名"
+rename_error_same_name: "新名称与当前名称相同"
+rename_error_empty: "文件名不能为空"
+rename_error_slash: "文件名不能包含 '/'"
+rename_failed: "重命名失败: %{error}"
+
+# 复制 / 移动
+copy: "复制"
+copy_to: "复制到…"
+copy_title: "复制文件到…"
+copy_source_label: "源文件: %{path}"
+copy_target_prefix: "目标路径前缀"
+copy_target_name: "新文件名"
+copy_failed: "复制失败: %{error}"
+copy_same_path: "目标与源文件路径相同"
+
+move: "移动"
+move_to: "移动到…"
+move_title: "移动文件到…"
+move_failed: "移动失败: %{error}"
+
 # IDE Layout
 storage_browser: "存储浏览器"
 no_connection: "暂无连接"

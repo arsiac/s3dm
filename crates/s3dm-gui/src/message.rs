@@ -131,6 +131,34 @@ pub enum Message {
     // ── 新建文件夹 ──
     /// 切换新建文件夹输入框显示
     ToggleNewFolder,
+    /// 打开重命名对话框
+    RenameObject(String),
+    /// 重命名输入框内容变更
+    RenameInputChanged(String),
+    /// 确认执行重命名
+    ConfirmRename,
+    /// 取消重命名
+    CancelRename,
+    /// 打开复制对话框
+    CopyObject(String),
+    /// 打开移动对话框
+    MoveObject(String),
+    /// 复制/移动对话框字段变更
+    CopyMoveInputChanged { field: String, value: String },
+    /// 进入目标路径下的某个子文件夹
+    NavigateIntoTargetFolder(String),
+    /// 返回目标路径的上一级
+    NavigateUpTargetFolder,
+    /// 手动输入目标前缀并立即加载子文件夹
+    TargetPrefixInputChanged(String),
+    /// 目标前缀的子文件夹列表加载结果
+    TargetPrefixesResult(Result<Vec<String>, s3dm_core::CoreError>),
+    /// 确认执行复制/移动
+    ConfirmCopyMove,
+    /// 取消复制/移动
+    CancelCopyMove,
+    /// 复制/移动操作结果
+    CopyMoveResult(Result<(), s3dm_core::CoreError>),
     /// 新建文件夹输入框内容变更
     NewFolderInputChanged(String),
     /// 确认创建文件夹

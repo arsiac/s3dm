@@ -712,6 +712,148 @@ impl S3Manager {
         .await
     }
 
+    /// 列出指定前缀下的子文件夹（公共前缀），用于复制/移动对话框的文件夹浏览器。
+    ///
+    /// 只返回 `common_prefixes`，不返回文件对象，相比 `list_objects` 更轻量。
+    pub async fn list_prefixes(
+        &self,
+        bucket: &str,
+        prefix: &str,
+    ) -> Result<Vec<String>, CoreError> {
+        let prefix = if prefix.is_empty() || prefix.ends_with('/') {
+            prefix.to_string()
+        } else {
+            format!("{}/", prefix)
+        };
+        log::info!(
+            "Listing prefixes bucket={} prefix={:?}",
+            bucket,
+            prefix
+        );
+        self.run_with_retry("list_prefixes", move |client| {
+            let prefix = prefix.clone();
+            async move {
+                let resp = client
+                    .list_objects_v2()
+                    .bucket(bucket)
+                    .prefix(prefix.clone())
+                    .delimiter("/")
+                    .max_keys(200)
+                    .send()
+                    .await
+                    .map_err(|e| {
+                        log::error!(
+                            "Failed to list prefixes bucket={} prefix={:?}: {}",
+                            bucket,
+                            prefix,
+                            e
+                        );
+                        map_sdk_error(&e)
+                    })?;
+
+                let prefixes: Vec<String> = resp
+                    .common_prefixes()
+                    .iter()
+                    .filter_map(|p| p.prefix().map(|s| s.to_string()))
+                    .collect();
+
+                log::info!(
+                    "Successfully listed {} prefixes under prefix={:?}",
+                    prefixes.len(),
+                    prefix
+                );
+                Ok(prefixes)
+            }
+        })
+        .await
+    }
+
+    /// 在同一个 bucket 内复制对象（S3 CopyObject API）。
+    ///
+    /// `source_key` 为源对象的 Key，`destination_key` 为目标 Key。
+    /// 源和目标必须在同一个 bucket 内。
+    pub async fn copy_object(
+        &self,
+        bucket: &str,
+        source_key: &str,
+        destination_key: &str,
+    ) -> Result<(), CoreError> {
+        log::info!(
+            "Copying object bucket={} source={} destination={}",
+            bucket,
+            source_key,
+            destination_key
+        );
+        let source = format!("{}/{}", bucket, source_key);
+        self.run_with_retry("copy_object", move |client| {
+            let source = source.clone();
+            let dest_key = destination_key.to_string();
+            async move {
+                client
+                    .copy_object()
+                    .bucket(bucket)
+                    .copy_source(source)
+                    .key(dest_key)
+                    .send()
+                    .await
+                    .map_err(|e| {
+                        log::error!(
+                            "Failed to copy object bucket={} source={} destination={}: {}",
+                            bucket,
+                            source_key,
+                            destination_key,
+                            e
+                        );
+                        map_sdk_error(&e)
+                    })?;
+                log::info!(
+                    "Object copied successfully bucket={} source={} destination={}",
+                    bucket,
+                    source_key,
+                    destination_key
+                );
+                Ok(())
+            }
+        })
+        .await
+    }
+
+    /// 在同一个 bucket 内移动对象（CopyObject + DeleteObject）。
+    ///
+    /// 先复制到目标 Key，复制成功后删除源对象。
+    /// 若复制成功但删除失败，记录警告日志但不回滚（S3 无事务支持），
+    /// 用户可手动清理多余的副本。
+    pub async fn move_object(
+        &self,
+        bucket: &str,
+        source_key: &str,
+        destination_key: &str,
+    ) -> Result<(), CoreError> {
+        log::info!(
+            "Moving object bucket={} source={} destination={}",
+            bucket,
+            source_key,
+            destination_key
+        );
+        self.copy_object(bucket, source_key, destination_key).await?;
+        if let Err(e) = self.delete_object(bucket, source_key).await {
+            log::warn!(
+                "Object copied but failed to delete source bucket={} key={}: {}. Manual cleanup may be needed.",
+                bucket,
+                source_key,
+                e
+            );
+            return Err(e);
+        }
+        log::info!(
+            "Object moved successfully bucket={} source={} destination={}",
+            bucket,
+            source_key,
+            destination_key
+        );
+        Ok(())
+    }
+
     pub async fn head_object(&self, bucket: &str, key: &str) -> Result<S3Object, CoreError> {
         log::debug!("Querying object metadata bucket={} key={}", bucket, key);
         self.run_with_retry("head_object", move |client| async move {

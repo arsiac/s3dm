@@ -14,26 +14,26 @@ delete: "刪除"
 add_connection_title: "新增連線"
 edit_connection_title: "編輯連線"
 name: "名稱"
-endpoint_hint: "端點位址（例如 https://s3.example.com）"
+endpoint_hint: "端點地址（例如 https://s3.example.com）"
 endpoint_protocol_hint: "提示：端點必須以 http:// 或 https:// 開頭，否則無法連線。"
 region: "區域（例如 us-east-1）"
 access_key_id: "存取金鑰 ID"
 secret_access_key: "秘密存取金鑰"
-force_path_style_label: "路徑風格 URL（建議用於 S3 相容儲存）"
-skip_tls_verify_label: "略過 TLS 憑證驗證（不安全）"
-credentials_plaintext_warning: "提示：憑證以明文儲存在本機檔案中（僅目前使用者可讀），請勿在共用裝置上使用。"
+force_path_style_label: "路徑風格 URL（推薦用於 S3 相容儲存）"
+skip_tls_verify_label: "跳過 TLS 憑證驗證（不安全）"
+credentials_plaintext_warning: "提示：憑證以明文儲存在本地檔案中（僅目前使用者可讀），請勿在共用裝置上使用。"
 save: "儲存"
 cancel: "取消"
 test_connection: "測試連線"
 testing_connection: "連線測試中..."
 test_connection_success: "連線成功"
 test_connection_failed: "連線失敗: %{error}"
-test_connection_empty_endpoint: "請先填寫端點位址"
+test_connection_empty_endpoint: "請先填寫端點地址"
 
 # Buckets page
 back: "← 返回"
 open: "開啟"
-no_buckets: "尚無儲存桶"
+no_buckets: "暫無儲存桶"
 
 # Objects page
 refresh: "重新整理"
@@ -48,8 +48,8 @@ empty_bucket: "目前儲存桶為空"
 
 # 預覽
 preview_loading: "正在載入預覽..."
-preview_too_large: "檔案過大，無法預覽，請下載後查看。"
-preview_unsupported: "不支援此檔案類型的預覽。"
+preview_too_large: "檔案過大，無法預覽，請下載後檢視。"
+preview_unsupported: "不支援該檔案類型的預覽。"
 preview_failed: "載入預覽失敗: %{error}"
 
 # Status
@@ -73,7 +73,7 @@ select_file_path: "請選擇檔案路徑"
 set_download_path: "請設定下載儲存路徑"
 read_file_failed: "讀取檔案失敗: %{error}"
 
-# Core error kinds (prefix for technical error details)
+# Core error kinds
 error_s3: "S3 錯誤"
 error_connection: "連線錯誤"
 error_not_found: "找不到"
@@ -81,8 +81,8 @@ error_io: "IO 錯誤"
 error_json: "JSON 錯誤"
 
 # Validation
-validation_required: "%{field} 不能為空"
-endpoint_invalid_protocol: "端點位址必須以 http:// 或 https:// 開頭"
+validation_required: "%{field}不能為空"
+endpoint_invalid_protocol: "端點地址必須以 http:// 或 https:// 開頭"
 field_name: "名稱"
 field_endpoint: "Endpoint"
 field_access_key_id: "Access Key ID"
@@ -91,6 +91,30 @@ field_secret_access_key: "Secret Access Key"
 # Dialog
 new_folder_title: "新增資料夾"
 new_folder_placeholder: "資料夾名稱"
+
+# 重新命名
+rename: "重新命名"
+rename_title: "重新命名檔案"
+rename_placeholder: "新檔案名稱"
+rename_error_same_name: "新名稱與目前名稱相同"
+rename_error_empty: "檔名不能為空"
+rename_error_slash: "檔名不能包含 '/'"
+rename_failed: "重新命名失敗: %{error}"
+
+# 複製 / 移動
+copy: "複製"
+copy_to: "複製到…"
+copy_title: "複製檔案到…"
+copy_source_label: "來源檔案: %{path}"
+copy_target_prefix: "目標路徑前綴"
+copy_target_name: "新檔案名稱"
+copy_failed: "複製失敗: %{error}"
+copy_same_path: "目標與來源路徑相同"
+
+move: "移動"
+move_to: "移動到…"
+move_title: "移動檔案到…"
+move_failed: "移動失敗: %{error}"
 
 # IDE Layout
 storage_browser: "儲存瀏覽器"
@@ -128,14 +152,14 @@ app_name: "S3 Desktop Manager"
 app_description: "一款跨平台的圖形化用戶端，用於管理 S3 儲存桶與物件。"
 version: "版本"
 author: "作者"
-license: "許可證"
+license: "授權條款"
 
 # 更新檢查
 update_available: "發現新版本 %{version}"
 update_available_short: "新版本：%{version}"
 update_check_now: "檢查更新"
 update_checking: "檢查中..."
-update_view: "查看"
+update_view: "檢視"
 update_auto_check: "啟動時自動檢查更新"
 update_no_update: "已是最新版本"
 update_unknown: "更新狀態未知"

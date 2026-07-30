@@ -92,6 +92,30 @@ field_secret_access_key: "Secret Access Key"
 new_folder_title: "New Folder"
 new_folder_placeholder: "Folder name"
 
+# Rename
+rename: "Rename"
+rename_title: "Rename File"
+rename_placeholder: "New file name"
+rename_error_same_name: "New name is the same as the current name"
+rename_error_empty: "File name cannot be empty"
+rename_error_slash: "File name cannot contain '/'"
+rename_failed: "Rename failed: %{error}"
+
+# Copy / Move
+copy: "Copy"
+copy_to: "Copy to…"
+copy_title: "Copy File to…"
+copy_source_label: "Source: %{path}"
+copy_target_prefix: "Target path prefix"
+copy_target_name: "New file name"
+copy_failed: "Copy failed: %{error}"
+copy_same_path: "Destination is the same as source"
+
+move: "Move"
+move_to: "Move to…"
+move_title: "Move File to…"
+move_failed: "Move failed: %{error}"
+
 # IDE Layout
 storage_browser: "Storage Browser"
 no_connection: "No Connections"
