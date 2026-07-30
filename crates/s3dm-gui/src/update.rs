@@ -558,6 +558,19 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             }
             Task::none()
         }
+        // ── 显示对象属性对话框 ──
+        Message::ShowObjectProperties(key) => {
+            app.show_properties = Some(key);
+            app.open_menu_key = None;
+            app.open_prefix_menu = None;
+            Task::none()
+        }
+
+        // ── 关闭对象属性对话框 ──
+        Message::CloseProperties => {
+            app.show_properties = None;
+            Task::none()
+        }
 
        // ── 切换对象的"更多"菜单 ──
        Message::ToggleObjectMenu(key) => {

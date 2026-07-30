@@ -288,6 +288,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     } else if app.preview_loading {
         stack_elements.push(preview::view_loading(app));
     }
+    // 对象属性对话框
+    if let Some(key) = &app.show_properties {
+        stack_elements.push(view_dialogs::properties_dialog(app, key));
+    }
+
 
     iced::widget::stack(stack_elements).into()
 }

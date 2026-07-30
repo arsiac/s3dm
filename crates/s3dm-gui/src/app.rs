@@ -104,6 +104,9 @@ pub struct App {
     pub preview_loading: bool,
     /// 预览文本/代码只读编辑器内容（用于支持选中与复制）
     pub preview_editor_content: Option<iced::widget::text_editor::Content<iced::Renderer>>,
+    /// 当前正在查看属性的对象 Key（None 表示未打开属性对话框）
+    pub show_properties: Option<String>,
+
     /// 新建文件夹输入框内容
     pub new_folder_input: Option<String>,
     /// 重命名对话框：(old_key, current_name)，None 表示关闭
@@ -240,6 +243,8 @@ pub fn boot() -> (App, Task<Message>) {
         preview_key: None,
         preview_loading: false,
         preview_editor_content: None,
+        show_properties: None,
+
         new_folder_input: None,
         rename_input: None,
         copy_move_input: None,

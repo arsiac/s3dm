@@ -165,3 +165,15 @@ update_no_update: "You are using the latest version"
 update_unknown: "Update status unknown"
 update_error: "Failed to check for updates: %{error}"
 update_error_in_panel: "Check failed: %{error}"
+# Object properties
+properties: "Properties"
+properties_title: "Object Properties"
+properties_key: "Object Key"
+properties_size: "Size"
+properties_last_modified: "Last Modified"
+properties_etag: "ETag"
+properties_close: "Close"
+properties_creation_date: "Creation Date"
+properties_absolute_path: "Absolute Path"
+
+

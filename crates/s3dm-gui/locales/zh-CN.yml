@@ -165,3 +165,15 @@ update_no_update: "已是最新版本"
 update_unknown: "更新状态未知"
 update_error: "检查更新失败：%{error}"
 update_error_in_panel: "检查失败：%{error}"
+# 对象属性
+properties: "属性"
+properties_title: "对象属性"
+properties_key: "对象键"
+properties_size: "大小"
+properties_last_modified: "最后修改时间"
+properties_etag: "ETag"
+properties_close: "关闭"
+properties_creation_date: "创建时间"
+properties_absolute_path: "文件绝对路径"
+
+

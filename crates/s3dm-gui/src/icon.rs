@@ -40,6 +40,9 @@ pub const ICON_RENAME: &[u8] = include_bytes!("../icons/rename-16-filled.svg");
 pub const ICON_COPY: &[u8] = include_bytes!("../icons/copy-16-filled.svg");
 pub const ICON_COPY_MOVE: &[u8] = include_bytes!("../icons/copy-move-16-filled.svg");
 pub const ICON_FOLDER_OPEN: &[u8] = include_bytes!("../icons/folder-open-16-filled.svg");
+/// 对象属性图标
+pub const ICON_INFO: &[u8] = include_bytes!("../icons/info-16-filled.svg");
+
 
 /// 根据文件名返回对应的文件类型图标字节。
 ///

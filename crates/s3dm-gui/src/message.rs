@@ -81,6 +81,10 @@ pub enum Message {
         key: String,
         data: Result<PreviewContent, CoreError>,
     },
+    /// 显示对象属性对话框
+    ShowObjectProperties(String),
+    /// 关闭对象属性对话框
+    CloseProperties,
     /// 关闭预览弹窗
     ClosePreview,
     /// 预览只读编辑器动作（选中/复制等交互，编辑类动作被忽略以保持只读）
@@ -90,6 +94,7 @@ pub enum Message {
     /// 下载结果，包含保存路径与写入字节数
     DownloadResult {
         key: String,
+
         save_path: String,
         data: Result<u64, CoreError>,
     },

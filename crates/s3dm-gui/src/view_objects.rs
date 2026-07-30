@@ -441,6 +441,22 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                         download_item.on_press(Message::DownloadObject(obj.key.clone()));
                 }
 
+                // 属性菜单项
+                let properties_item = button(
+                    row![
+                        svg(SvgHandle::from_memory(icon::ICON_INFO.to_vec()))
+                            .width(Length::Fixed(16.0))
+                            .height(Length::Fixed(16.0))
+                            .style(move |_: &Theme, _: svg::Status| menu_svg_style),
+                        text(t!("properties").to_string()).size(14).color(p.text_secondary),
+                    ]
+                    .spacing(8)
+                    .align_y(Alignment::Center),
+                )
+                .style(menu_item_style)
+                .width(Length::Fill)
+                .on_press(Message::ShowObjectProperties(obj.key.clone()));
+
                 // 删除菜单项
                 // 重命名菜单项
                 let rename_item = button(
@@ -506,7 +522,7 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                 .on_press(Message::DeleteObject(obj.key.clone()));
 
                 // 菜单浮层内容
-                let menu_overlay = container(column![preview_item, download_item, rename_item, copy_item, move_item, delete_item].spacing(2))
+                let menu_overlay = container(column![preview_item, download_item, rename_item, copy_item, move_item, delete_item, properties_item].spacing(2))
                     .padding(4)
                     .style(|theme: &Theme| container::Style {
                         background: Some(iced::Background::Color(constants::custom_palette(theme).surface)),

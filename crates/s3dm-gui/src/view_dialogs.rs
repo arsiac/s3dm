@@ -339,7 +339,143 @@ pub fn copy_move_dialog<'a>(app: &'a App, state: &'a crate::app::CopyMoveState) 
 
 /// 通用半透明遮罩 + 居中容器包装
 ///
-/// 将面板内容居中放置在暗色半透明背景上，形成模态弹窗效果。
+
+/// 渲染对象属性对话框
+pub fn properties_dialog<'a>(app: &'a App, key: &'a str) -> Element<'a, Message> {
+    let p = constants::custom_palette(&app.theme);
+    let obj = app.objects.iter().find(|o| o.key == key);
+
+    let key_full = key.to_string();
+    let size_str = obj.map(|o| constants::format_size(o.size)).unwrap_or_default();
+    let last_modified = obj
+        .and_then(|o| o.last_modified)
+        .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
+        .unwrap_or_default();
+    let etag = obj
+        .and_then(|o| o.etag.as_deref())
+        .unwrap_or("")
+        .trim_matches('"')
+        .to_string();
+
+
+    // 构建属性行
+    let rows: Vec<Element<Message>> = vec![
+        container(
+            row![
+                text(t!("properties_key")).size(13).color(p.text_secondary).width(Length::Fixed(100.0)),
+                text(key_full).size(13),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .width(Length::Fill)
+        .into(),
+        container(
+            row![
+                text(t!("properties_size")).size(13).color(p.text_secondary).width(Length::Fixed(100.0)),
+                text(size_str).size(13),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .width(Length::Fill)
+        .into(),
+        container(
+            row![
+                text(t!("properties_last_modified")).size(13).color(p.text_secondary).width(Length::Fixed(100.0)),
+                text(last_modified.clone()).size(13),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .width(Length::Fill)
+        .into(),
+        container(
+            row![
+                text(t!("properties_creation_date")).size(13).color(p.text_secondary).width(Length::Fixed(100.0)),
+                text(last_modified).size(13),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .width(Length::Fill)
+        .into(),
+        container(
+            row![
+                text(t!("properties_etag")).size(13).color(p.text_secondary).width(Length::Fixed(100.0)),
+                text(etag).size(13),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .width(Length::Fill)
+        .into(),
+    ];
+
+    let panel = container(column![
+            row![
+                svg(SvgHandle::from_memory(icon::ICON_INFO.to_vec()))
+                    .width(Length::Fixed(18.0))
+                    .height(Length::Fixed(18.0))
+                    .style(move |_: &Theme, _: svg::Status| svg::Style {
+                        color: Some(p.text_secondary),
+                    }),
+                text(t!("properties_title")).size(18),
+                container(
+                    button(
+                        svg(SvgHandle::from_memory(icon::ICON_DISMISS.to_vec()))
+                            .width(Length::Fixed(16.0))
+                            .height(Length::Fixed(16.0))
+                            .style(move |_: &Theme, _: svg::Status| svg::Style {
+                                color: Some(p.text_secondary),
+                            }),
+                    )
+                    .style(move |_: &Theme, s: button::Status| -> button::Style {
+                        let hbg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.12);
+                        let (bg, border) = match s {
+                            button::Status::Hovered | button::Status::Pressed => (
+                                Some(iced::Background::Color(hbg)),
+                                Border {
+                                    color: hbg,
+                                    width: 1.0,
+                                    radius: 4.0.into(),
+                                },
+                            ),
+                            _ => (None, Border::default().width(0)),
+                        };
+                        button::Style {
+                            background: bg,
+                            border,
+                            text_color: iced::Color::WHITE,
+                            shadow: iced::Shadow::default(),
+                            ..Default::default()
+                        }
+                    })
+                    .on_press(Message::CloseProperties),
+                )
+                .width(Length::Fill)
+                .align_x(Alignment::End),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+            rule::horizontal(1),
+            container(column(rows).spacing(8))
+                .width(Length::Fill)
+                .padding(Padding::from([8, 0])),
+        ]
+        .spacing(12)
+        .padding(20),
+    )
+    .width(420)
+    .style(move |_: &Theme| container::Style {
+        background: Some(iced::Background::Color(p.surface_raised)),
+        border: Border::default().rounded(8),
+        ..Default::default()
+    });
+
+    overlay_wrap(panel)
+}
+
 fn overlay_wrap<'a>(content: container::Container<'a, Message>) -> Element<'a, Message> {
     let overlay = container(content)
         .width(Length::Fill)
