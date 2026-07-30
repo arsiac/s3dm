@@ -42,6 +42,7 @@ upload: "Upload"
 download_save_path: "Download save path"
 folder: "Folder"
 download: "Download"
+preview: "Preview"
 load_more: "Load more..."
 empty_bucket: "This bucket is empty"
 

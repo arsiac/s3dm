@@ -320,6 +320,7 @@ mod tests {
             theme: "Light".into(),
             language: "zh-CN".into(),
             download_dir: "/tmp".into(),
+            auto_check_update: true,
         };
         // 直接写临时文件验证序列化/反序列化
         let content = serde_json::to_string_pretty(&settings).unwrap();

@@ -42,6 +42,7 @@ upload: "上傳"
 download_save_path: "下載儲存路徑"
 folder: "資料夾"
 download: "下載"
+preview: "預覽"
 load_more: "載入更多..."
 empty_bucket: "目前儲存桶為空"
 

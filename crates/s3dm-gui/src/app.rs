@@ -59,6 +59,8 @@ pub struct App {
     pub downloading_file: Option<String>,
     /// 当前正在下载的对象 Key（用于在列表中标记对应行的下载按钮）
     pub downloading_key: Option<String>,
+    /// 当前展开"更多"菜单的对象 Key（None 表示无菜单展开，互斥）
+    pub open_menu_key: Option<String>,
     /// 当前下载进度（已下载字节数，总大小 None 表示未知），None 表示无进行中的下载
     pub download_progress: Option<(u64, Option<u64>)>,
     /// 下载成功提示信息（None 表示无提示，用于顶部绿色通知栏）
@@ -198,6 +200,7 @@ pub fn boot() -> (App, Task<Message>) {
         download_dir,
         downloading_file: None,
         downloading_key: None,
+        open_menu_key: None,
         download_progress: None,
         success_message: None,
         pending_delete: None,

@@ -63,6 +63,8 @@ pub enum Message {
     PreviewObject(String),
     /// 提示删除单个对象确认
     DeleteObject(String),
+    /// 切换某个对象的"更多"菜单开合（None 关闭所有菜单）
+    ToggleObjectMenu(Option<String>),
     /// 提示删除整个前缀确认
     DeletePrefix(String),
     /// 打开上传文件选择器

@@ -469,6 +469,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
 
         // ── 预览对象 ──
         Message::PreviewObject(key) => {
+            app.open_menu_key = None;
             log::info!("Previewing object: {}", key);
             let bucket = match &app.current_bucket {
                 Some(b) => b.clone(),
@@ -557,9 +558,16 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
 
+        // ── 切换对象的"更多"菜单 ──
+        Message::ToggleObjectMenu(key) => {
+            app.open_menu_key = key;
+            Task::none()
+        }
+
         // ── 提示删除对象确认 ──
         Message::DeleteObject(key) => {
             log::info!("Prompting delete object confirmation: {}", key);
+            app.open_menu_key = None;
             app.pending_delete_object = Some(key);
             Task::none()
         }
@@ -743,6 +751,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
 
         // ── 下载对象 ──
         Message::DownloadObject(key) => {
+            app.open_menu_key = None;
             let bucket = match &app.current_bucket {
                 Some(b) => b.clone(),
                 None => return Task::none(),
