@@ -215,7 +215,11 @@ pub fn copy_move_dialog<'a>(app: &'a App, state: &'a crate::app::CopyMoveState) 
             items.push(
                 button(
                     row![
-                        text("📂 ..").size(13),
+                        svg(SvgHandle::from_memory(icon::ICON_FOLDER_OPEN.to_vec()))
+                            .width(Length::Fixed(14.0))
+                            .height(Length::Fixed(14.0))
+                            .style(svg_style),
+                        text("..").size(13),
                     ]
                     .spacing(6)
                     .align_y(Alignment::Center),

@@ -134,7 +134,11 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
         items.push(
             button(
                 row![
-                    text("📂 ..").size(14),
+                    svg(SvgHandle::from_memory(icon::ICON_FOLDER_OPEN.to_vec()))
+                        .width(Length::Fixed(16.0))
+                        .height(Length::Fixed(16.0))
+                        .style(svg_style),
+                    text("..").size(14),
                     container(text("")).width(Length::Fill),
                 ]
                 .spacing(10)
