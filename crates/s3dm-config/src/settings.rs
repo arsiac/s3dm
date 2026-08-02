@@ -24,13 +24,13 @@ pub struct AppSettings {
     /// 启动时是否自动检查更新（`#[serde(default)]` 兼容旧 settings.json）
     #[serde(default = "default_true")]
     pub auto_check_update: bool,
-    /// 界面字体家族名称（空字符串表示使用系统默认字体）
+    /// 界面字体系列名称（空字符串表示使用系统默认字体）
     #[serde(default = "default_empty")]
     pub ui_font_family: String,
     /// 界面基础字号（像素，显式字号按此值等比缩放）
     #[serde(default = "default_ui_font_size")]
     pub ui_font_size: u16,
-    /// 预览编辑器字体家族名称（空字符串表示使用系统默认等宽字体）
+    /// 预览编辑器字体系列名称（空字符串表示使用系统默认等宽字体）
     #[serde(default = "default_empty")]
     pub preview_font_family: String,
     /// 预览编辑器字号（像素）
@@ -43,7 +43,7 @@ fn default_true() -> bool {
     true
 }
 
-/// 返回空字符串默认值（字体家族名称，空 = 使用系统默认字体）。
+/// 返回空字符串默认值（字体系列名称，空 = 使用系统默认字体）。
 fn default_empty() -> String {
     String::new()
 }

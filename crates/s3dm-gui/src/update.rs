@@ -1271,7 +1271,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
 
-        // ── 界面字体家族名称 ──
+        // ── 界面字体系列名称 ──
         Message::UiFontFamilyChanged(family) => {
             app.ui_font_family = family.trim().to_string();
             save_settings(app);
@@ -1285,7 +1285,7 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
 
-        // ── 预览编辑器字体家族名称 ──
+        // ── 预览编辑器字体系列名称 ──
         Message::PreviewFontFamilyChanged(family) => {
             app.preview_font_family = family.trim().to_string();
             save_settings(app);

@@ -21,7 +21,7 @@ pub struct ConnectionForm {
     pub region: String,
     /// 访问密钥 ID
     pub access_key_id: String,
-    /// 秘密访问密钥
+    /// 私有访问密钥
     pub secret_access_key: String,
     /// 是否使用路径风格（path-style）寻址
     pub force_path_style: bool,

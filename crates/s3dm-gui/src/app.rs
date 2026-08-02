@@ -144,11 +144,11 @@ pub struct App {
     pub update_dismissed: bool,
     /// 设置项：启动时是否自动检查更新
     pub auto_check_update: bool,
-    /// 界面字体家族名称（空 = 系统默认）
+    /// 界面字体系列名称（空 = 系统默认）
     pub ui_font_family: String,
     /// 界面基础字号（像素）
     pub ui_font_size: u16,
-    /// 预览编辑器字体家族名称（空 = 系统默认等宽字体）
+    /// 预览编辑器字体系列名称（空 = 系统默认等宽字体）
     pub preview_font_family: String,
     /// 预览编辑器字号（像素）
     pub preview_font_size: u16,

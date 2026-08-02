@@ -274,7 +274,7 @@ fn size_slider<'a>(
     .into()
 }
 
-/// 字体家族下拉框（可输入过滤，忽略大小写）
+/// 字体系列下拉框（可输入过滤，忽略大小写）
 ///
 /// 选项为「系统默认 + 已安装字体」；输入时按子串过滤并高亮候选项，
 /// 键入任意文本也会实时生效（等同自定义字体名）。
@@ -286,7 +286,7 @@ fn font_combo<'a>(
     placeholder: &str,
     on_select: fn(String) -> Message,
 ) -> Element<'a, Message> {
-    // 空值显示「系统默认」；否则显示当前家族名
+    // 空值显示「系统默认」；否则显示当前系列名
     let selection = if value.trim().is_empty() {
         default_label.to_string()
     } else {

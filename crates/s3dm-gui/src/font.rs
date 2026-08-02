@@ -1,9 +1,9 @@
 //! 字体配置辅助
 //!
-//! 将设置中的字体偏好（家族名称 + 字号）转换为 Iced 可用的 `Font` 与
+//! 将设置中的字体偏好（系列名称 + 字号）转换为 Iced 可用的 `Font` 与
 //! 像素尺寸：
-//! - 界面字体：空家族名回退到系统默认无衬线字体，字号按基础值等比缩放
-//! - 预览编辑器字体：空家族名回退到系统默认等宽字体
+//! - 界面字体：空系列名回退到系统默认无衬线字体，字号按基础值等比缩放
+//! - 预览编辑器字体：空系列名回退到系统默认等宽字体
 //!
 //! 由于 Iced 的 `Font::Family::Name` 需要 `'static` 借用，这里用一个
 //! 进程级缓存将用户输入的名称转换为 `'static str`（仅首次出现时泄漏，
@@ -24,14 +24,14 @@ pub const DEFAULT_PREVIEW_FONT_SIZE: u16 = 13;
 /// 界面字号缩放基准
 const UI_FONT_SIZE_BASE: f32 = DEFAULT_UI_FONT_SIZE as f32;
 
-/// 家族名称 → `'static str` 缓存
+/// 系列名称 → `'static str` 缓存
 static NAME_CACHE: OnceLock<Mutex<HashMap<String, &'static str>>> = OnceLock::new();
 
 fn name_cache() -> &'static Mutex<HashMap<String, &'static str>> {
     NAME_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// 将家族名提升为 `'static str`（进程级缓存，同一名称只泄漏一次）。
+/// 将系列名提升为 `'static str`（进程级缓存，同一名称只泄漏一次）。
 ///
 /// Iced 的 `Family::Name` 需要 `'static` 借用；下拉框选项与用户输入
 /// 的名称都经由此处转换。
@@ -45,7 +45,7 @@ pub fn leak_name(name: &str) -> &'static str {
         .or_insert_with(|| Box::leak(name.to_string().into_boxed_str()))
 }
 
-/// 将用户输入的家族名解析为 Iced `Family`；空/空白名称返回默认家族。
+/// 将用户输入的系列名解析为 Iced `Family`；空/空白名称返回默认系列。
 fn family_from_str(name: &str) -> Family {
     if name.trim().is_empty() {
         Family::SansSerif
@@ -54,7 +54,7 @@ fn family_from_str(name: &str) -> Family {
     }
 }
 
-/// 系统已安装的字体家族列表（去重、排序；进程级缓存，仅首次扫描系统字体）。
+/// 系统已安装的字体系列列表（去重、排序；进程级缓存，仅首次扫描系统字体）。
 pub fn installed_families() -> &'static [&'static str] {
     static FAMILIES: OnceLock<Vec<&'static str>> = OnceLock::new();
     FAMILIES.get_or_init(|| {
@@ -62,7 +62,7 @@ pub fn installed_families() -> &'static [&'static str] {
         db.load_system_fonts();
         let mut names: HashSet<String> = HashSet::new();
         for face in db.faces() {
-            // 每个字面只取主家族名，避免同一字体的本地化别名重复出现
+            // 每个字面只取主系列名，避免同一字体的本地化别名重复出现
             if let Some((family, _)) = face.families.first() {
                 let trimmed = family.trim();
                 if !trimmed.is_empty() {
@@ -85,7 +85,7 @@ pub fn font_options(default_label: &str) -> Vec<String> {
     options
 }
 
-/// 根据家族名构造字体，空名称时使用 `fallback`。
+/// 根据系列名构造字体，空名称时使用 `fallback`。
 fn font_from_str(name: &str, fallback: Font) -> Font {
     if name.trim().is_empty() {
         fallback
@@ -97,12 +97,12 @@ fn font_from_str(name: &str, fallback: Font) -> Font {
     }
 }
 
-/// 当前界面字体（空家族名 → 系统默认无衬线字体）
+/// 当前界面字体（空系列名 → 系统默认无衬线字体）
 pub fn ui_font(app: &App) -> Font {
     font_from_str(&app.ui_font_family, Font::DEFAULT)
 }
 
-/// 当前预览编辑器字体（空家族名 → 系统默认等宽字体）
+/// 当前预览编辑器字体（空系列名 → 系统默认等宽字体）
 pub fn preview_font(app: &App) -> Font {
     font_from_str(&app.preview_font_family, Font::MONOSPACE)
 }
@@ -127,7 +127,7 @@ pub fn ui_size(app: &App, base: u16) -> u32 {
 
 /// 解析启动时的字体偏好，返回应用级 `iced::Settings` 所需的字段组合。
 ///
-/// 返回 (default_font, default_text_size)；空家族名时 default_font 保持
+/// 返回 (default_font, default_text_size)；空系列名时 default_font 保持
 /// Iced 默认，从而由各平台字体回退机制自行选择。
 pub fn startup_font(family: &str, size: u16) -> (Font, Pixels) {
     let font = font_from_str(family, Font::DEFAULT);
