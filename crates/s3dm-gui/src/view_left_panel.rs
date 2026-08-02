@@ -14,6 +14,7 @@ use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
+use crate::font;
 use crate::icon;
 use crate::message::Message;
 
@@ -62,7 +63,8 @@ pub fn view_left_panel(app: &App) -> Element<'_, Message> {
     let header = container(
         row![
             text(t!("storage_browser").to_string())
-                .size(13)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 13))
                 .color(p.text_secondary),
             container(
                 button(
@@ -100,7 +102,8 @@ pub fn view_left_panel(app: &App) -> Element<'_, Message> {
         items.push(
             container(
                 text(t!("no_connection").to_string())
-                    .size(12)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 12))
                     .color(p.text_secondary),
             )
             .padding(Padding::from([8, 16]))
@@ -154,16 +157,21 @@ pub fn view_left_panel(app: &App) -> Element<'_, Message> {
             .padding(Padding::from([2, 4]));
 
         let conn_row = row![
-            text(&conn.name).size(13),
+            text(&conn.name)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 13)),
             container(edit_btn)
                 .width(Length::Fill)
                 .align_x(Alignment::End),
             delete_btn,
-            text("●").size(8).color(if is_connected {
-                iced::Color::from_rgb(0.3, 0.8, 0.3)
-            } else {
-                p.text_secondary
-            }),
+            text("●")
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 8))
+                .color(if is_connected {
+                    iced::Color::from_rgb(0.3, 0.8, 0.3)
+                } else {
+                    p.text_secondary
+                }),
         ]
         .spacing(2)
         .align_y(Alignment::Center);

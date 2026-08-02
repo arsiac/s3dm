@@ -16,6 +16,7 @@ use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
+use crate::font;
 use crate::icon;
 use crate::message::Message;
 
@@ -208,8 +209,8 @@ const PREVIEW_BODY_H: f32 = 620.0 - 16.0 * 2.0 - 30.0 - 1.0 - 10.0;
 /// 不包裹 `scrollable`：由 `text_editor` 自身内部滚动（iced 0.14 的 text_editor
 /// 不绘制滚动条），避免双层滚动导致的滚动条异常。
 fn render_text_editor<'a>(app: &'a App, token: Option<&str>) -> Element<'a, Message> {
-    let font = iced::Font::MONOSPACE;
-    let size = 13.0;
+    let font = font::preview_font(app);
+    let size = f32::from(app.preview_font_size);
     let content = app
         .preview_editor_content
         .as_ref()
@@ -263,7 +264,8 @@ fn preview_body<'a>(app: &'a App, content: &'a PreviewContent) -> Element<'a, Me
         .into(),
         PreviewContent::TooLarge => container(
             text(t!("preview_too_large").to_string())
-                .size(14)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 14))
                 .color(p.text_secondary),
         )
         .width(Length::Fill)
@@ -273,7 +275,8 @@ fn preview_body<'a>(app: &'a App, content: &'a PreviewContent) -> Element<'a, Me
         .into(),
         PreviewContent::Unsupported => container(
             text(t!("preview_unsupported").to_string())
-                .size(14)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 14))
                 .color(p.text_secondary),
         )
         .width(Length::Fill)
@@ -309,8 +312,13 @@ pub fn view<'a>(app: &'a App, content: &'a PreviewContent, key: &'a str) -> Elem
             .width(Length::Fixed(16.0))
             .height(Length::Fixed(16.0))
             .style(svg_style),
-        text(obj_name).size(15),
-        text(size_label).size(12).color(p.text_secondary),
+        text(obj_name)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 15)),
+        text(size_label)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 12))
+            .color(p.text_secondary),
         container(
             button(dismiss)
                 .style(move |_: &Theme, s: button::Status| -> button::Style {
@@ -377,7 +385,8 @@ pub fn view_loading<'a>(app: &'a App) -> Element<'a, Message> {
     let p = constants::custom_palette(&app.theme);
     let overlay = container(
         text(t!("preview_loading").to_string())
-            .size(14)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14))
             .color(p.text_secondary),
     )
     .width(Length::Fill)

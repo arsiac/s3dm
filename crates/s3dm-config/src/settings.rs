@@ -12,7 +12,7 @@ use std::path::PathBuf;
 /// 应用偏好设置
 ///
 /// 与 `ConnectionConfig` 不同，此处不涉及任何敏感凭据，
-/// 仅保存用户对主题、语言与下载目录的偏好。
+/// 仅保存用户对主题、语言、下载目录与字体等 UI 偏好。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     /// 主题显示名称（对应 GUI 的 AVAILABLE_THEMES）
@@ -24,11 +24,38 @@ pub struct AppSettings {
     /// 启动时是否自动检查更新（`#[serde(default)]` 兼容旧 settings.json）
     #[serde(default = "default_true")]
     pub auto_check_update: bool,
+    /// 界面字体家族名称（空字符串表示使用系统默认字体）
+    #[serde(default = "default_empty")]
+    pub ui_font_family: String,
+    /// 界面基础字号（像素，显式字号按此值等比缩放）
+    #[serde(default = "default_ui_font_size")]
+    pub ui_font_size: u16,
+    /// 预览编辑器字体家族名称（空字符串表示使用系统默认等宽字体）
+    #[serde(default = "default_empty")]
+    pub preview_font_family: String,
+    /// 预览编辑器字号（像素）
+    #[serde(default = "default_preview_font_size")]
+    pub preview_font_size: u16,
 }
 
 /// 返回布尔默认值 `true`，用于 `#[serde(default)]` 字段。
 fn default_true() -> bool {
     true
+}
+
+/// 返回空字符串默认值（字体家族名称，空 = 使用系统默认字体）。
+fn default_empty() -> String {
+    String::new()
+}
+
+/// 界面基础字号默认值。
+fn default_ui_font_size() -> u16 {
+    14
+}
+
+/// 预览编辑器字号默认值。
+fn default_preview_font_size() -> u16 {
+    13
 }
 
 impl Default for AppSettings {
@@ -40,6 +67,10 @@ impl Default for AppSettings {
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default(),
             auto_check_update: true,
+            ui_font_family: String::new(),
+            ui_font_size: default_ui_font_size(),
+            preview_font_family: String::new(),
+            preview_font_size: default_preview_font_size(),
         }
     }
 }

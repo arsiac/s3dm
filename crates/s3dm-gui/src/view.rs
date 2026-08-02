@@ -15,6 +15,7 @@ use iced::{
 use rust_i18n::t;
 
 use crate::app::App;
+use crate::font;
 use crate::icon;
 use crate::message::Message;
 
@@ -69,7 +70,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let error_bar = container(
             row![
                 text(t!("error", message = err.as_str()).to_string())
-                    .size(13)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
                     .color(iced::Color::WHITE),
                 space::horizontal(),
                 button(dismiss)
@@ -124,7 +126,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
         let success_bar = container(
             row![
-                text(msg).size(13).color(iced::Color::WHITE),
+                text(msg)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
+                    .color(iced::Color::WHITE),
                 space::horizontal(),
                 button(dismiss)
                     .style(icon_btn_style)
@@ -176,14 +181,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 color: Some(iced::Color::WHITE),
             });
 
-        let view_btn = button(text(t!("update_view").to_string()).size(13))
-            .style(icon_btn_style)
-            .on_press(Message::OpenReleasePage);
+        let view_btn = button(
+            text(t!("update_view").to_string())
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 13)),
+        )
+        .style(icon_btn_style)
+        .on_press(Message::OpenReleasePage);
 
         let update_bar = container(
             row![
                 text(t!("update_available", version = info.version.as_str()).to_string())
-                    .size(13)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
                     .color(iced::Color::WHITE),
                 space::horizontal(),
                 view_btn,
@@ -293,7 +303,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         stack_elements.push(view_dialogs::properties_dialog(app, key));
     }
 
-
     iced::widget::stack(stack_elements).into()
 }
 
@@ -332,11 +341,16 @@ fn view_right_content(app: &App) -> Element<'_, Message> {
         } else {
             t!("select_connection_hint")
         };
-        container(text(hint.to_string()).size(16).color(p.text_secondary))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
-            .into()
+        container(
+            text(hint.to_string())
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 16))
+                .color(p.text_secondary),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .into()
     }
 }

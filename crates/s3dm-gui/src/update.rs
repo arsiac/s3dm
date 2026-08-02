@@ -572,12 +572,12 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
 
-       // ── 切换对象的"更多"菜单 ──
-       Message::ToggleObjectMenu(key) => {
+        // ── 切换对象的"更多"菜单 ──
+        Message::ToggleObjectMenu(key) => {
             app.open_prefix_menu = None;
-           app.open_menu_key = key;
-           Task::none()
-       }
+            app.open_menu_key = key;
+            Task::none()
+        }
 
         // ── 切换文件夹的"更多"菜单 ──
         Message::TogglePrefixMenu(key) => {
@@ -586,8 +586,8 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             Task::none()
         }
 
-       // ── 提示删除对象确认 ──
-       Message::DeleteObject(key) => {
+        // ── 提示删除对象确认 ──
+        Message::DeleteObject(key) => {
             log::info!("Prompting delete object confirmation: {}", key);
             app.open_menu_key = None;
             app.open_prefix_menu = None;
@@ -668,7 +668,11 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             log::info!("Opening rename dialog for: {}", key);
             app.open_menu_key = None;
             app.open_prefix_menu = None;
-            let name = key.trim_end_matches('/').rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.trim_end_matches('/').to_string());
+            let name = key
+                .trim_end_matches('/')
+                .rsplit_once('/')
+                .map(|(_, n)| n.to_string())
+                .unwrap_or_else(|| key.trim_end_matches('/').to_string());
             app.rename_input = Some((key, name));
             Task::none()
         }
@@ -722,7 +726,9 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                 async move {
                     if old_key.ends_with('/') {
                         // 文件夹重命名：递归移动所有子文件
-                        s3.move_prefix(&bucket, &old_key, &new_key).await.map(|_| ())
+                        s3.move_prefix(&bucket, &old_key, &new_key)
+                            .await
+                            .map(|_| ())
                     } else {
                         // 重命名 = CopyObject + DeleteObject（使用 move_object）
                         s3.move_object(&bucket, &old_key, &new_key).await
@@ -742,7 +748,11 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             log::info!("Opening copy dialog for: {}", key);
             app.open_menu_key = None;
             app.open_prefix_menu = None;
-            let name = key.trim_end_matches('/').rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.trim_end_matches('/').to_string());
+            let name = key
+                .trim_end_matches('/')
+                .rsplit_once('/')
+                .map(|(_, n)| n.to_string())
+                .unwrap_or_else(|| key.trim_end_matches('/').to_string());
             let prefix = app.current_prefix.clone();
             let bucket = app.current_bucket.clone();
             let s3 = app.s3_manager.clone();
@@ -763,7 +773,11 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
             log::info!("Opening move dialog for: {}", key);
             app.open_menu_key = None;
             app.open_prefix_menu = None;
-            let name = key.trim_end_matches('/').rsplit_once('/').map(|(_, n)| n.to_string()).unwrap_or_else(|| key.trim_end_matches('/').to_string());
+            let name = key
+                .trim_end_matches('/')
+                .rsplit_once('/')
+                .map(|(_, n)| n.to_string())
+                .unwrap_or_else(|| key.trim_end_matches('/').to_string());
             let prefix = app.current_prefix.clone();
             let bucket = app.current_bucket.clone();
             let s3 = app.s3_manager.clone();
@@ -781,11 +795,11 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         }
 
         Message::CopyMoveInputChanged { field, value } => {
-                if let Some(ref mut state) = app.copy_move_input
-                    && field.as_str() == "new_name"
-                {
-                    state.new_name = value;
-                }
+            if let Some(ref mut state) = app.copy_move_input
+                && field.as_str() == "new_name"
+            {
+                state.new_name = value;
+            }
             Task::none()
         }
 
@@ -899,12 +913,14 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                     if source_key.ends_with('/') {
                         // 文件夹操作：递归复制/移动所有子文件
                         match mode {
-                            crate::app::CopyMoveMode::Copy => {
-                                s3.copy_prefix(&bucket, &source_key, &destination_key).await.map(|_| ())
-                            }
-                            crate::app::CopyMoveMode::Move => {
-                                s3.move_prefix(&bucket, &source_key, &destination_key).await.map(|_| ())
-                            }
+                            crate::app::CopyMoveMode::Copy => s3
+                                .copy_prefix(&bucket, &source_key, &destination_key)
+                                .await
+                                .map(|_| ()),
+                            crate::app::CopyMoveMode::Move => s3
+                                .move_prefix(&bucket, &source_key, &destination_key)
+                                .await
+                                .map(|_| ()),
                         }
                     } else {
                         match mode {
@@ -939,16 +955,14 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
                     log::error!("Copy/move operation failed: {}", e);
                     // 错误显示在对话框内，不清除对话框
                     if let Some(ref mut state) = app.copy_move_input {
-                        state.error = Some(
-                            match state.mode {
-                                crate::app::CopyMoveMode::Copy => {
-                                    t!("copy_failed", error = core_error_message(&e)).to_string()
-                                }
-                                crate::app::CopyMoveMode::Move => {
-                                    t!("move_failed", error = core_error_message(&e)).to_string()
-                                }
+                        state.error = Some(match state.mode {
+                            crate::app::CopyMoveMode::Copy => {
+                                t!("copy_failed", error = core_error_message(&e)).to_string()
                             }
-                        );
+                            crate::app::CopyMoveMode::Move => {
+                                t!("move_failed", error = core_error_message(&e)).to_string()
+                            }
+                        });
                     }
                 }
             }
@@ -1246,6 +1260,41 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
         // ── 语言切换 ──
         Message::LanguageChanged(code) => {
             rust_i18n::set_locale(&code);
+            rebuild_font_combos(app);
+            save_settings(app);
+            Task::none()
+        }
+
+        // ── 设置面板分类切换 ──
+        Message::SettingsCategorySelected(category) => {
+            app.settings_category = category;
+            Task::none()
+        }
+
+        // ── 界面字体家族名称 ──
+        Message::UiFontFamilyChanged(family) => {
+            app.ui_font_family = family.trim().to_string();
+            save_settings(app);
+            Task::none()
+        }
+
+        // ── 界面字号 ──
+        Message::UiFontSizeChanged(size) => {
+            app.ui_font_size = size.clamp(8, 32);
+            save_settings(app);
+            Task::none()
+        }
+
+        // ── 预览编辑器字体家族名称 ──
+        Message::PreviewFontFamilyChanged(family) => {
+            app.preview_font_family = family.trim().to_string();
+            save_settings(app);
+            Task::none()
+        }
+
+        // ── 预览编辑器字号 ──
+        Message::PreviewFontSizeChanged(size) => {
+            app.preview_font_size = size.clamp(8, 32);
             save_settings(app);
             Task::none()
         }
@@ -1344,7 +1393,7 @@ fn normalize_prefix(raw: &str) -> String {
     }
 }
 
-/// 将当前内存中的偏好设置（主题/语言/下载目录）持久化到 `settings.json`。
+/// 将当前内存中的偏好设置（主题/语言/下载目录/字体）持久化到 `settings.json`。
 ///
 /// 失败仅记录日志，不阻断交互（设置属于非关键偏好）。
 fn save_settings(app: &App) {
@@ -1353,10 +1402,26 @@ fn save_settings(app: &App) {
         language: rust_i18n::locale().to_string(),
         download_dir: app.download_dir.clone(),
         auto_check_update: app.auto_check_update,
+        ui_font_family: app.ui_font_family.clone(),
+        ui_font_size: app.ui_font_size,
+        preview_font_family: app.preview_font_family.clone(),
+        preview_font_size: app.preview_font_size,
     };
     if let Err(e) = settings.save() {
         log::error!("Failed to save settings: {}", e);
     }
+}
+
+/// 按当前语言重建字体下拉框状态（选项中的「系统默认」标签随语言变化）。
+fn rebuild_font_combos(app: &mut App) {
+    app.ui_font_combo = iced::widget::combo_box::State::with_selection(
+        crate::font::font_options(rust_i18n::t!("settings_font_family_default").as_ref()),
+        Some(&app.ui_font_family),
+    );
+    app.preview_font_combo = iced::widget::combo_box::State::with_selection(
+        crate::font::font_options(rust_i18n::t!("settings_font_family_default_mono").as_ref()),
+        Some(&app.preview_font_family),
+    );
 }
 
 /// 加载复制/移动对话框中的目标前缀子文件夹列表

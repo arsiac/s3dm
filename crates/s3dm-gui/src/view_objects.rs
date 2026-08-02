@@ -14,12 +14,13 @@ use iced::{
         text,
     },
 };
-use iced_aw::widget::drop_down::DropDown;
 use iced_aw::core::alignment::Alignment as DropDownAlignment;
+use iced_aw::widget::drop_down::DropDown;
 use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
+use crate::font;
 use crate::icon;
 use crate::message::Message;
 
@@ -88,11 +89,16 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                 .width(Length::Fixed(16.0))
                 .height(Length::Fixed(16.0))
                 .style(svg_style),
-            text(bucket_name).size(16),
+            text(bucket_name)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 16)),
         ]
         .spacing(4)
         .align_y(Alignment::Center),
-        text(&app.current_prefix).size(14).color(p.text_secondary),
+        text(&app.current_prefix)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14))
+            .color(p.text_secondary),
         container(
             button(refresh_svg)
                 .style(icon_btn_style)
@@ -138,7 +144,9 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                         .width(Length::Fixed(16.0))
                         .height(Length::Fixed(16.0))
                         .style(svg_style),
-                    text("..").size(14),
+                    text("..")
+                        .font(font::ui_font(app))
+                        .size(font::ui_size(app, 14)),
                     container(text("")).width(Length::Fill),
                 ]
                 .spacing(10)
@@ -157,7 +165,6 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
             .strip_prefix(&app.current_prefix)
             .unwrap_or(prefix)
             .trim_end_matches('/');
-
 
         // 文件夹"更多"菜单：重命名、复制、移动、删除
         let menu_item_style = move |_: &Theme, s: button::Status| -> button::Style {
@@ -191,7 +198,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                     .width(Length::Fixed(16.0))
                     .height(Length::Fixed(16.0))
                     .style(move |_: &Theme, _: svg::Status| menu_svg_style),
-                text(t!("rename").to_string()).size(14).color(p.text_secondary),
+                text(t!("rename").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14))
+                    .color(p.text_secondary),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -206,7 +216,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                     .width(Length::Fixed(16.0))
                     .height(Length::Fixed(16.0))
                     .style(move |_: &Theme, _: svg::Status| menu_svg_style),
-                text(t!("copy_to").to_string()).size(14).color(p.text_secondary),
+                text(t!("copy_to").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14))
+                    .color(p.text_secondary),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -221,7 +234,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                     .width(Length::Fixed(16.0))
                     .height(Length::Fixed(16.0))
                     .style(move |_: &Theme, _: svg::Status| menu_svg_style),
-                text(t!("move_to").to_string()).size(14).color(p.text_secondary),
+                text(t!("move_to").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14))
+                    .color(p.text_secondary),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -236,7 +252,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                     .width(Length::Fixed(16.0))
                     .height(Length::Fixed(16.0))
                     .style(move |_: &Theme, _: svg::Status| menu_svg_style),
-                text(t!("delete").to_string()).size(14).color(p.text_secondary),
+                text(t!("delete").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14))
+                    .color(p.text_secondary),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -245,17 +264,20 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
         .width(Length::Fill)
         .on_press(Message::DeletePrefix(prefix.clone()));
 
-        let menu_overlay = container(column![rename_item, copy_item, move_item, delete_item].spacing(2))
-            .padding(4)
-            .style(|theme: &Theme| container::Style {
-                background: Some(iced::Background::Color(constants::custom_palette(theme).surface)),
-                border: Border {
-                    color: iced::Color::from_rgba(1.0, 1.0, 1.0, 0.12),
-                    width: 1.0,
-                    radius: 6.0.into(),
-                },
-                ..Default::default()
-            });
+        let menu_overlay =
+            container(column![rename_item, copy_item, move_item, delete_item].spacing(2))
+                .padding(4)
+                .style(|theme: &Theme| container::Style {
+                    background: Some(iced::Background::Color(
+                        constants::custom_palette(theme).surface,
+                    )),
+                    border: Border {
+                        color: iced::Color::from_rgba(1.0, 1.0, 1.0, 0.12),
+                        width: 1.0,
+                        radius: 6.0.into(),
+                    },
+                    ..Default::default()
+                });
 
         let more_btn = button(
             svg(SvgHandle::from_memory(icon::ICON_MORE_VERTICAL.to_vec()))
@@ -284,7 +306,9 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                             .width(Length::Fixed(14.0))
                             .height(Length::Fixed(14.0))
                             .style(svg_style),
-                        text(display_name).size(14),
+                        text(display_name)
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14)),
                     ]
                     .spacing(4)
                     .align_y(Alignment::Center),
@@ -348,14 +372,17 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                     .width(Length::Fixed(14.0))
                     .height(Length::Fixed(14.0))
                     .style(svg_style),
-                text(name).size(14),
+                text(name)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14)),
             ]
             .spacing(4)
             .align_y(Alignment::Center)
             .into(),
             container(
                 text(constants::format_size(obj.size))
-                    .size(12)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 12))
                     .color(p.text_secondary),
             )
             .width(Length::Fill)
@@ -365,35 +392,35 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                     .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
                     .unwrap_or_default(),
             )
-            .size(12)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 12))
             .color(p.text_secondary)
             .into(),
             preview_btn.into(),
             // "更多"按钮：点击展开下拉菜单，内含下载与删除操作
             {
                 // 菜单项样式（左对齐、带图标 + 文字）
-                let menu_item_style =
-                    move |_: &Theme, s: button::Status| -> button::Style {
-                        let hbg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.08);
-                        let (bg, border) = match s {
-                            button::Status::Hovered | button::Status::Pressed => (
-                                Some(iced::Background::Color(hbg)),
-                                Border {
-                                    color: hbg,
-                                    width: 1.0,
-                                    radius: 4.0.into(),
-                                },
-                            ),
-                            _ => (None, Border::default().width(0)),
-                        };
-                        button::Style {
-                            background: bg,
-                            border,
-                            text_color: p.text_secondary,
-                            shadow: iced::Shadow::default(),
-                            ..Default::default()
-                        }
+                let menu_item_style = move |_: &Theme, s: button::Status| -> button::Style {
+                    let hbg = iced::Color::from_rgba(1.0, 1.0, 1.0, 0.08);
+                    let (bg, border) = match s {
+                        button::Status::Hovered | button::Status::Pressed => (
+                            Some(iced::Background::Color(hbg)),
+                            Border {
+                                color: hbg,
+                                width: 1.0,
+                                radius: 4.0.into(),
+                            },
+                        ),
+                        _ => (None, Border::default().width(0)),
                     };
+                    button::Style {
+                        background: bg,
+                        border,
+                        text_color: p.text_secondary,
+                        shadow: iced::Shadow::default(),
+                        ..Default::default()
+                    }
+                };
 
                 // 菜单项图标统一使用确定的次级文字色（避免浮层取色异常导致空白）
                 let menu_svg_style = svg::Style {
@@ -415,7 +442,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                             .style(move |_: &Theme, _: svg::Status| svg::Style {
                                 color: Some(preview_menu_icon_color),
                             }),
-                        text(t!("preview").to_string()).size(14).color(p.text_secondary),
+                        text(t!("preview").to_string())
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14))
+                            .color(p.text_secondary),
                     ]
                     .spacing(8)
                     .align_y(Alignment::Center),
@@ -433,7 +463,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                             .width(Length::Fixed(16.0))
                             .height(Length::Fixed(16.0))
                             .style(move |_: &Theme, _: svg::Status| menu_svg_style),
-                        text(t!("download").to_string()).size(14).color(p.text_secondary),
+                        text(t!("download").to_string())
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14))
+                            .color(p.text_secondary),
                     ]
                     .spacing(8)
                     .align_y(Alignment::Center),
@@ -452,7 +485,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                             .width(Length::Fixed(16.0))
                             .height(Length::Fixed(16.0))
                             .style(move |_: &Theme, _: svg::Status| menu_svg_style),
-                        text(t!("properties").to_string()).size(14).color(p.text_secondary),
+                        text(t!("properties").to_string())
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14))
+                            .color(p.text_secondary),
                     ]
                     .spacing(8)
                     .align_y(Alignment::Center),
@@ -469,7 +505,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                             .width(Length::Fixed(16.0))
                             .height(Length::Fixed(16.0))
                             .style(move |_: &Theme, _: svg::Status| menu_svg_style),
-                        text(t!("rename").to_string()).size(14).color(p.text_secondary),
+                        text(t!("rename").to_string())
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14))
+                            .color(p.text_secondary),
                     ]
                     .spacing(8)
                     .align_y(Alignment::Center),
@@ -485,7 +524,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                             .width(Length::Fixed(16.0))
                             .height(Length::Fixed(16.0))
                             .style(move |_: &Theme, _: svg::Status| menu_svg_style),
-                        text(t!("copy_to").to_string()).size(14).color(p.text_secondary),
+                        text(t!("copy_to").to_string())
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14))
+                            .color(p.text_secondary),
                     ]
                     .spacing(8)
                     .align_y(Alignment::Center),
@@ -501,7 +543,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                             .width(Length::Fixed(16.0))
                             .height(Length::Fixed(16.0))
                             .style(move |_: &Theme, _: svg::Status| menu_svg_style),
-                        text(t!("move_to").to_string()).size(14).color(p.text_secondary),
+                        text(t!("move_to").to_string())
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14))
+                            .color(p.text_secondary),
                     ]
                     .spacing(8)
                     .align_y(Alignment::Center),
@@ -516,7 +561,10 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                             .width(Length::Fixed(16.0))
                             .height(Length::Fixed(16.0))
                             .style(move |_: &Theme, _: svg::Status| menu_svg_style),
-                        text(t!("delete").to_string()).size(14).color(p.text_secondary),
+                        text(t!("delete").to_string())
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14))
+                            .color(p.text_secondary),
                     ]
                     .spacing(8)
                     .align_y(Alignment::Center),
@@ -526,17 +574,30 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
                 .on_press(Message::DeleteObject(obj.key.clone()));
 
                 // 菜单浮层内容
-                let menu_overlay = container(column![preview_item, download_item, rename_item, copy_item, move_item, delete_item, properties_item].spacing(2))
-                    .padding(4)
-                    .style(|theme: &Theme| container::Style {
-                        background: Some(iced::Background::Color(constants::custom_palette(theme).surface)),
-                        border: Border {
-                            color: iced::Color::from_rgba(1.0, 1.0, 1.0, 0.12),
-                            width: 1.0,
-                            radius: 6.0.into(),
-                        },
-                        ..Default::default()
-                    });
+                let menu_overlay = container(
+                    column![
+                        preview_item,
+                        download_item,
+                        rename_item,
+                        copy_item,
+                        move_item,
+                        delete_item,
+                        properties_item
+                    ]
+                    .spacing(2),
+                )
+                .padding(4)
+                .style(|theme: &Theme| container::Style {
+                    background: Some(iced::Background::Color(
+                        constants::custom_palette(theme).surface,
+                    )),
+                    border: Border {
+                        color: iced::Color::from_rgba(1.0, 1.0, 1.0, 0.12),
+                        width: 1.0,
+                        radius: 6.0.into(),
+                    },
+                    ..Default::default()
+                });
 
                 // "更多"触发按钮
                 let more_btn = button(
@@ -586,7 +647,8 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
     {
         let empty = container(
             text(t!("empty_bucket").to_string())
-                .size(14)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 14))
                 .color(p.text_secondary),
         )
         .width(Length::Fill)
@@ -603,11 +665,18 @@ pub fn view_objects(app: &App) -> Element<'_, Message> {
     // ── "加载更多"分页按钮 ──
     if app.is_truncated {
         items.push(
-            container(button(text(t!("load_more").to_string())).on_press(Message::LoadMoreObjects))
-                .padding(Padding::from([8, 16]))
-                .center_x(Length::Fill)
-                .width(Length::Fill)
-                .into(),
+            container(
+                button(
+                    text(t!("load_more").to_string())
+                        .font(font::ui_font(app))
+                        .size(font::ui_size(app, 14)),
+                )
+                .on_press(Message::LoadMoreObjects),
+            )
+            .padding(Padding::from([8, 16]))
+            .center_x(Length::Fill)
+            .width(Length::Fill)
+            .into(),
         );
     }
 

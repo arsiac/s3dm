@@ -146,6 +146,28 @@ download_dir: "下载目录"
 download_dir_hint: "文件下载保存路径"
 close: "关闭"
 
+# 设置分类
+settings_category_general: "通用"
+settings_category_appearance: "外观"
+settings_category_preview: "预览"
+settings_category_updates: "更新"
+settings_category_about: "关于"
+settings_general_hint: "语言与下载目录等基础设置。"
+settings_appearance_hint: "主题与界面字体设置。"
+settings_preview_hint: "对象预览（文本/代码）编辑器的字体设置。"
+settings_updates_hint: "更新检查相关设置。"
+
+# 字体设置
+settings_ui_font: "界面字体"
+settings_preview_editor_font: "预览编辑器字体"
+settings_ui_font_family_label: "字体家族"
+settings_ui_font_size_label: "字号"
+settings_font_family_default: "系统默认"
+settings_font_family_default_mono: "系统默认等宽"
+settings_font_search_placeholder: "输入以筛选字体…"
+settings_font_sample_ui: "界面字体预览"
+settings_font_sample_preview: "预览编辑器字体示例"
+
 # 关于
 about: "关于"
 app_name: "S3 Desktop Manager"
@@ -175,5 +197,3 @@ properties_etag: "ETag"
 properties_close: "关闭"
 properties_creation_date: "创建时间"
 properties_absolute_path: "文件绝对路径"
-
-

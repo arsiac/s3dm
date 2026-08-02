@@ -5340,6 +5340,7 @@ version = "0.3.1-dev"
 dependencies = [
  "chrono",
  "dirs",
+ "fontdb",
  "iced",
  "iced_aw",
  "iced_highlighter",

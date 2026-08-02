@@ -146,6 +146,28 @@ download_dir: "Download Directory"
 download_dir_hint: "Path to save downloaded files"
 close: "Close"
 
+# Settings categories
+settings_category_general: "General"
+settings_category_appearance: "Appearance"
+settings_category_preview: "Preview"
+settings_category_updates: "Updates"
+settings_category_about: "About"
+settings_general_hint: "Basic settings such as language and download directory."
+settings_appearance_hint: "Theme and interface font settings."
+settings_preview_hint: "Font settings for the object preview (text/code) editor."
+settings_updates_hint: "Settings related to update checks."
+
+# Font settings
+settings_ui_font: "Interface Font"
+settings_preview_editor_font: "Preview Editor Font"
+settings_ui_font_family_label: "Font Family"
+settings_ui_font_size_label: "Font Size"
+settings_font_family_default: "System Default"
+settings_font_family_default_mono: "System Default Monospace"
+settings_font_search_placeholder: "Type to filter fonts…"
+settings_font_sample_ui: "UI font sample"
+settings_font_sample_preview: "Preview editor font sample"
+
 # About
 about: "About"
 app_name: "S3 Desktop Manager"
@@ -175,5 +197,3 @@ properties_etag: "ETag"
 properties_close: "Close"
 properties_creation_date: "Creation Date"
 properties_absolute_path: "Absolute Path"
-
-

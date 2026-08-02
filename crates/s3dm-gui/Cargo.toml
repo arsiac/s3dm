@@ -7,6 +7,7 @@ edition.workspace = true
 iced = { workspace = true, features = ["svg", "image", "tokio", "highlighter", "advanced"] }
 iced_highlighter = "0.14"
 iced_aw = "0.14"
+fontdb = "0.23"
 rfd = "0.15"
 dirs = { workspace = true }
 tokio = { workspace = true }

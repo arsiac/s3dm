@@ -9,14 +9,17 @@
 //! 每个函数返回已包装 `opaque` 的完整 overlay 元素，可直接加入 stack 中。
 
 use iced::{
-    Alignment, Border, Element, Length,
-    Padding,
-    widget::{Theme, button, column, container, row, rule, scrollable, svg, svg::Handle as SvgHandle, text, text_input},
+    Alignment, Border, Element, Length, Padding,
+    widget::{
+        Theme, button, column, container, row, rule, scrollable, svg, svg::Handle as SvgHandle,
+        text, text_input,
+    },
 };
 use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
+use crate::font;
 use crate::icon;
 use crate::message::Message;
 
@@ -28,17 +31,30 @@ pub fn delete_connection<'a>(
 ) -> Element<'a, Message> {
     let p = constants::custom_palette(&app.theme);
     let panel = column![
-        text(t!("delete_confirm_title").to_string()).size(18),
+        text(t!("delete_confirm_title").to_string())
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 18)),
         rule::horizontal(1),
-        text(t!("delete_confirm_message", name = conn_name).to_string()).size(14),
+        text(t!("delete_confirm_message", name = conn_name).to_string())
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14)),
         row![
             container(
-                button(text(t!("confirm").to_string()))
-                    .on_press(Message::ConfirmDelete(del_id.to_string()))
+                button(
+                    text(t!("confirm").to_string())
+                        .font(font::ui_font(app))
+                        .size(font::ui_size(app, 14)),
+                )
+                .on_press(Message::ConfirmDelete(del_id.to_string()))
             )
             .width(Length::Fill)
             .align_x(Alignment::End),
-            button(text(t!("cancel").to_string())).on_press(Message::CancelDelete),
+            button(
+                text(t!("cancel").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14)),
+            )
+            .on_press(Message::CancelDelete),
         ]
         .spacing(10),
     ]
@@ -61,17 +77,30 @@ pub fn delete_object<'a>(app: &'a App, del_key: &'a str) -> Element<'a, Message>
     let obj_name = del_key.rsplit_once('/').map(|(_, n)| n).unwrap_or(del_key);
     let p = constants::custom_palette(&app.theme);
     let panel = column![
-        text(t!("delete_object_confirm_title").to_string()).size(18),
+        text(t!("delete_object_confirm_title").to_string())
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 18)),
         rule::horizontal(1),
-        text(t!("delete_object_confirm_message", name = obj_name).to_string()).size(14),
+        text(t!("delete_object_confirm_message", name = obj_name).to_string())
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14)),
         row![
             container(
-                button(text(t!("confirm").to_string()))
-                    .on_press(Message::ConfirmDeleteObject(del_key.to_string()))
+                button(
+                    text(t!("confirm").to_string())
+                        .font(font::ui_font(app))
+                        .size(font::ui_size(app, 14)),
+                )
+                .on_press(Message::ConfirmDeleteObject(del_key.to_string()))
             )
             .width(Length::Fill)
             .align_x(Alignment::End),
-            button(text(t!("cancel").to_string())).on_press(Message::CancelDeleteObject),
+            button(
+                text(t!("cancel").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14)),
+            )
+            .on_press(Message::CancelDeleteObject),
         ]
         .spacing(10),
     ]
@@ -98,17 +127,30 @@ pub fn delete_prefix<'a>(app: &'a App, prefix: &'a str) -> Element<'a, Message> 
         .unwrap_or(prefix.trim_end_matches('/'));
     let p = constants::custom_palette(&app.theme);
     let panel = column![
-        text(t!("delete_prefix_confirm_title").to_string()).size(18),
+        text(t!("delete_prefix_confirm_title").to_string())
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 18)),
         rule::horizontal(1),
-        text(t!("delete_prefix_confirm_message", name = folder_name).to_string()).size(14),
+        text(t!("delete_prefix_confirm_message", name = folder_name).to_string())
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14)),
         row![
             container(
-                button(text(t!("confirm").to_string()))
-                    .on_press(Message::ConfirmDeletePrefix(prefix.to_string()))
+                button(
+                    text(t!("confirm").to_string())
+                        .font(font::ui_font(app))
+                        .size(font::ui_size(app, 14)),
+                )
+                .on_press(Message::ConfirmDeletePrefix(prefix.to_string()))
             )
             .width(Length::Fill)
             .align_x(Alignment::End),
-            button(text(t!("cancel").to_string())).on_press(Message::CancelDeletePrefix),
+            button(
+                text(t!("cancel").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14)),
+            )
+            .on_press(Message::CancelDeletePrefix),
         ]
         .spacing(10),
     ]
@@ -130,14 +172,31 @@ pub fn delete_prefix<'a>(app: &'a App, prefix: &'a str) -> Element<'a, Message> 
 pub fn new_folder<'a>(app: &'a App, input: &'a str) -> Element<'a, Message> {
     let p = constants::custom_palette(&app.theme);
     let panel = column![
-        text(t!("new_folder_title").to_string()).size(18),
+        text(t!("new_folder_title").to_string())
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 18)),
         rule::horizontal(1),
-        text_input(&t!("new_folder_placeholder"), input).on_input(Message::NewFolderInputChanged),
+        text_input(&t!("new_folder_placeholder"), input)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14))
+            .on_input(Message::NewFolderInputChanged),
         row![
-            container(button(text(t!("confirm").to_string())).on_press(Message::CreateNewFolder))
-                .width(Length::Fill)
-                .align_x(Alignment::End),
-            button(text(t!("cancel").to_string())).on_press(Message::ToggleNewFolder),
+            container(
+                button(
+                    text(t!("confirm").to_string())
+                        .font(font::ui_font(app))
+                        .size(font::ui_size(app, 14)),
+                )
+                .on_press(Message::CreateNewFolder)
+            )
+            .width(Length::Fill)
+            .align_x(Alignment::End),
+            button(
+                text(t!("cancel").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14)),
+            )
+            .on_press(Message::ToggleNewFolder),
         ]
         .spacing(10),
     ]
@@ -156,21 +215,38 @@ pub fn new_folder<'a>(app: &'a App, input: &'a str) -> Element<'a, Message> {
 }
 
 /// 渲染重命名文件对话框
-pub fn rename_dialog<'a>(app: &'a App, _old_key: &'a str, current_name: &'a str) -> Element<'a, Message> {
+pub fn rename_dialog<'a>(
+    app: &'a App,
+    _old_key: &'a str,
+    current_name: &'a str,
+) -> Element<'a, Message> {
     let p = constants::custom_palette(&app.theme);
     let panel = column![
-        text(t!("rename_title").to_string()).size(18),
+        text(t!("rename_title").to_string())
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 18)),
         rule::horizontal(1),
         text_input(&t!("rename_placeholder"), current_name)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14))
             .on_input(Message::RenameInputChanged),
         row![
             container(
-                button(text(t!("confirm").to_string()))
-                    .on_press(Message::ConfirmRename)
+                button(
+                    text(t!("confirm").to_string())
+                        .font(font::ui_font(app))
+                        .size(font::ui_size(app, 14)),
+                )
+                .on_press(Message::ConfirmRename)
             )
             .width(Length::Fill)
             .align_x(Alignment::End),
-            button(text(t!("cancel").to_string())).on_press(Message::CancelRename),
+            button(
+                text(t!("cancel").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14)),
+            )
+            .on_press(Message::CancelRename),
         ]
         .spacing(10),
     ]
@@ -189,7 +265,10 @@ pub fn rename_dialog<'a>(app: &'a App, _old_key: &'a str, current_name: &'a str)
 }
 
 /// 渲染复制/移动文件对话框
-pub fn copy_move_dialog<'a>(app: &'a App, state: &'a crate::app::CopyMoveState) -> Element<'a, Message> {
+pub fn copy_move_dialog<'a>(
+    app: &'a App,
+    state: &'a crate::app::CopyMoveState,
+) -> Element<'a, Message> {
     let p = constants::custom_palette(&app.theme);
     let svg_style = move |_: &Theme, _: svg::Status| svg::Style {
         color: Some(p.text_secondary),
@@ -202,11 +281,16 @@ pub fn copy_move_dialog<'a>(app: &'a App, state: &'a crate::app::CopyMoveState) 
     // ── 文件夹列表（条件渲染） ──
     let folder_list: Vec<Element<Message>> = if state.is_loading_prefixes {
         vec![
-            container(text(t!("loading").to_string()).size(13).color(p.text_secondary))
-                .width(Length::Fill)
-                .center_x(Length::Fill)
-                .padding(Padding::from([16, 0]))
-                .into(),
+            container(
+                text(t!("loading").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
+                    .color(p.text_secondary),
+            )
+            .width(Length::Fill)
+            .center_x(Length::Fill)
+            .padding(Padding::from([16, 0]))
+            .into(),
         ]
     } else {
         let mut items: Vec<Element<Message>> = Vec::new();
@@ -219,7 +303,9 @@ pub fn copy_move_dialog<'a>(app: &'a App, state: &'a crate::app::CopyMoveState) 
                             .width(Length::Fixed(14.0))
                             .height(Length::Fixed(14.0))
                             .style(svg_style),
-                        text("..").size(13),
+                        text("..")
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 13)),
                     ]
                     .spacing(6)
                     .align_y(Alignment::Center),
@@ -248,7 +334,9 @@ pub fn copy_move_dialog<'a>(app: &'a App, state: &'a crate::app::CopyMoveState) 
                             .width(Length::Fixed(14.0))
                             .height(Length::Fixed(14.0))
                             .style(svg_style),
-                        text(display_name).size(13),
+                        text(display_name)
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 13)),
                     ]
                     .spacing(6)
                     .align_y(Alignment::Center),
@@ -271,43 +359,56 @@ pub fn copy_move_dialog<'a>(app: &'a App, state: &'a crate::app::CopyMoveState) 
 
     let panel = container(
         column![
-            text(title).size(18),
+            text(title)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 18)),
             rule::horizontal(1),
             // 源文件信息
             text(t!("copy_source_label", path = state.source_key.as_str()).to_string())
-                .size(12)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 12))
                 .color(p.text_secondary),
             // 目标路径输入
-            text(t!("copy_target_prefix").to_string()).size(13),
+            text(t!("copy_target_prefix").to_string())
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 13)),
             text_input("", &state.target_prefix)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 14))
                 .on_input(Message::TargetPrefixInputChanged),
             // 文件夹浏览器
-            container(
-                scrollable(
-                    column(folder_list).spacing(2)
-                )
-                .height(Length::Fixed(180.0))
-            )
-            .style(|_: &Theme| container::Style {
-                background: Some(iced::Background::Color(iced::Color::from_rgba(0.0, 0.0, 0.0, 0.06))),
-                border: Border::default().rounded(4),
-                ..Default::default()
-            })
-            .padding(8)
-            .width(Length::Fill),
+            container(scrollable(column(folder_list).spacing(2)).height(Length::Fixed(180.0)))
+                .style(|_: &Theme| container::Style {
+                    background: Some(iced::Background::Color(iced::Color::from_rgba(
+                        0.0, 0.0, 0.0, 0.06
+                    ))),
+                    border: Border::default().rounded(4),
+                    ..Default::default()
+                })
+                .padding(8)
+                .width(Length::Fill),
             // 新文件名
-            text(t!("copy_target_name").to_string()).size(13),
+            text(t!("copy_target_name").to_string())
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 13)),
             text_input(&state.new_name, &state.new_name)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 14))
                 .on_input(|v| Message::CopyMoveInputChanged {
                     field: "new_name".to_string(),
                     value: v,
                 }),
             // 对话框内错误提示
             if let Some(ref err) = state.error {
-                let e: Element<Message> = container(text(err).size(12).color(iced::Color::from_rgb(0.9, 0.3, 0.3)))
-                    .padding(Padding::from([4, 0]))
-                    .width(Length::Fill)
-                    .into();
+                let e: Element<Message> = container(
+                    text(err)
+                        .font(font::ui_font(app))
+                        .size(font::ui_size(app, 12))
+                        .color(iced::Color::from_rgb(0.9, 0.3, 0.3)),
+                )
+                .padding(Padding::from([4, 0]))
+                .width(Length::Fill)
+                .into();
                 e
             } else {
                 let e: Element<Message> = iced::widget::Space::new().into();
@@ -316,17 +417,26 @@ pub fn copy_move_dialog<'a>(app: &'a App, state: &'a crate::app::CopyMoveState) 
             // 按钮
             row![
                 container(
-                    button(text(t!("confirm").to_string()))
-                        .on_press(Message::ConfirmCopyMove)
+                    button(
+                        text(t!("confirm").to_string())
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14)),
+                    )
+                    .on_press(Message::ConfirmCopyMove)
                 )
                 .width(Length::Fill)
                 .align_x(Alignment::End),
-                button(text(t!("cancel").to_string())).on_press(Message::CancelCopyMove),
+                button(
+                    text(t!("cancel").to_string())
+                        .font(font::ui_font(app))
+                        .size(font::ui_size(app, 14)),
+                )
+                .on_press(Message::CancelCopyMove),
             ]
             .spacing(10),
         ]
         .spacing(10)
-        .padding(20)
+        .padding(20),
     );
 
     let content = container(panel)
@@ -347,7 +457,9 @@ pub fn properties_dialog<'a>(app: &'a App, key: &'a str) -> Element<'a, Message>
     let obj = app.objects.iter().find(|o| o.key == key);
 
     let key_full = key.to_string();
-    let size_str = obj.map(|o| constants::format_size(o.size)).unwrap_or_default();
+    let size_str = obj
+        .map(|o| constants::format_size(o.size))
+        .unwrap_or_default();
     let last_modified = obj
         .and_then(|o| o.last_modified)
         .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
@@ -358,13 +470,18 @@ pub fn properties_dialog<'a>(app: &'a App, key: &'a str) -> Element<'a, Message>
         .trim_matches('"')
         .to_string();
 
-
     // 构建属性行
     let rows: Vec<Element<Message>> = vec![
         container(
             row![
-                text(t!("properties_key")).size(13).color(p.text_secondary).width(Length::Fixed(100.0)),
-                text(key_full).size(13),
+                text(t!("properties_key"))
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
+                    .color(p.text_secondary)
+                    .width(Length::Fixed(100.0)),
+                text(key_full)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13)),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -373,8 +490,14 @@ pub fn properties_dialog<'a>(app: &'a App, key: &'a str) -> Element<'a, Message>
         .into(),
         container(
             row![
-                text(t!("properties_size")).size(13).color(p.text_secondary).width(Length::Fixed(100.0)),
-                text(size_str).size(13),
+                text(t!("properties_size"))
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
+                    .color(p.text_secondary)
+                    .width(Length::Fixed(100.0)),
+                text(size_str)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13)),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -383,8 +506,14 @@ pub fn properties_dialog<'a>(app: &'a App, key: &'a str) -> Element<'a, Message>
         .into(),
         container(
             row![
-                text(t!("properties_last_modified")).size(13).color(p.text_secondary).width(Length::Fixed(100.0)),
-                text(last_modified.clone()).size(13),
+                text(t!("properties_last_modified"))
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
+                    .color(p.text_secondary)
+                    .width(Length::Fixed(100.0)),
+                text(last_modified.clone())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13)),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -393,8 +522,14 @@ pub fn properties_dialog<'a>(app: &'a App, key: &'a str) -> Element<'a, Message>
         .into(),
         container(
             row![
-                text(t!("properties_creation_date")).size(13).color(p.text_secondary).width(Length::Fixed(100.0)),
-                text(last_modified).size(13),
+                text(t!("properties_creation_date"))
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
+                    .color(p.text_secondary)
+                    .width(Length::Fixed(100.0)),
+                text(last_modified)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13)),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -403,8 +538,14 @@ pub fn properties_dialog<'a>(app: &'a App, key: &'a str) -> Element<'a, Message>
         .into(),
         container(
             row![
-                text(t!("properties_etag")).size(13).color(p.text_secondary).width(Length::Fixed(100.0)),
-                text(etag).size(13),
+                text(t!("properties_etag"))
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
+                    .color(p.text_secondary)
+                    .width(Length::Fixed(100.0)),
+                text(etag)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13)),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -413,7 +554,8 @@ pub fn properties_dialog<'a>(app: &'a App, key: &'a str) -> Element<'a, Message>
         .into(),
     ];
 
-    let panel = container(column![
+    let panel = container(
+        column![
             row![
                 svg(SvgHandle::from_memory(icon::ICON_INFO.to_vec()))
                     .width(Length::Fixed(18.0))
@@ -421,7 +563,9 @@ pub fn properties_dialog<'a>(app: &'a App, key: &'a str) -> Element<'a, Message>
                     .style(move |_: &Theme, _: svg::Status| svg::Style {
                         color: Some(p.text_secondary),
                     }),
-                text(t!("properties_title")).size(18),
+                text(t!("properties_title"))
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 18)),
                 container(
                     button(
                         svg(SvgHandle::from_memory(icon::ICON_DISMISS.to_vec()))

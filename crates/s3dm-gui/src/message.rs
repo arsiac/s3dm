@@ -120,6 +120,16 @@ pub enum Message {
     ThemeChanged(String),
     /// 语言切换
     LanguageChanged(String),
+    /// 切换设置面板的分类页
+    SettingsCategorySelected(crate::app::SettingsCategory),
+    /// 界面字体家族名称变更
+    UiFontFamilyChanged(String),
+    /// 界面字号变更
+    UiFontSizeChanged(u16),
+    /// 预览编辑器字体家族名称变更
+    PreviewFontFamilyChanged(String),
+    /// 预览编辑器字号变更
+    PreviewFontSizeChanged(u16),
 
     // ── 删除确认对话框 ──
     /// 确认删除连接

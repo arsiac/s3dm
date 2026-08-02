@@ -11,6 +11,7 @@
 //! | `connection` | `ConnectionForm` 连接表单模型 |
 //! | `message` | `Message` 枚举（所有用户交互/异步回调事件） |
 //! | `app` | `App` 结构体（应用状态）、`boot()` 初始化 |
+//! | `font` | 字体配置辅助（界面/预览字体解析与字号缩放） |
 //! | `update` | `update()` 状态机核心 |
 //! | `view` | `view()` 主视图编排、`view_right_content()` |
 //! | `view_left_panel` | 左侧面板（连接列表） |
@@ -28,6 +29,7 @@ rust_i18n::i18n!("locales");
 pub mod app;
 pub mod connection;
 pub mod constants;
+pub mod font;
 pub mod icon;
 pub mod message;
 pub mod preview;

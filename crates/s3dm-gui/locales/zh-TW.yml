@@ -146,6 +146,28 @@ download_dir: "下載目錄"
 download_dir_hint: "檔案下載儲存路徑"
 close: "關閉"
 
+# 設定分類
+settings_category_general: "一般"
+settings_category_appearance: "外觀"
+settings_category_preview: "預覽"
+settings_category_updates: "更新"
+settings_category_about: "關於"
+settings_general_hint: "語言與下載目錄等基礎設定。"
+settings_appearance_hint: "主題與介面字型設定。"
+settings_preview_hint: "物件預覽（文字/程式碼）編輯器的字型設定。"
+settings_updates_hint: "更新檢查相關設定。"
+
+# 字型設定
+settings_ui_font: "介面字型"
+settings_preview_editor_font: "預覽編輯器字型"
+settings_ui_font_family_label: "字型家族"
+settings_ui_font_size_label: "字型大小"
+settings_font_family_default: "系統預設"
+settings_font_family_default_mono: "系統預設等寬"
+settings_font_search_placeholder: "輸入以篩選字型…"
+settings_font_sample_ui: "介面字型預覽"
+settings_font_sample_preview: "預覽編輯器字型範例"
+
 # 關於
 about: "關於"
 app_name: "S3 Desktop Manager"
@@ -175,5 +197,3 @@ properties_etag: "ETag"
 properties_close: "關閉"
 properties_creation_date: "建立時間"
 properties_absolute_path: "檔案絕對路徑"
-
-

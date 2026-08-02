@@ -22,6 +22,7 @@ fn main() -> iced::Result {
     .ok();
 
     iced::application(s3dm_gui::boot, s3dm_gui::update, s3dm_gui::view)
+        .settings(s3dm_gui::font::startup_settings())
         .theme(|app: &s3dm_gui::App| app.theme.clone())
         .title(|_app: &s3dm_gui::App| "S3 Desktop Manager".to_string())
         .window(iced::window::Settings {

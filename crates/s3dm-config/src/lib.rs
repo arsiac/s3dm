@@ -321,6 +321,10 @@ mod tests {
             language: "zh-CN".into(),
             download_dir: "/tmp".into(),
             auto_check_update: true,
+            ui_font_family: "JetBrains Mono".into(),
+            ui_font_size: 16,
+            preview_font_family: "Fira Code".into(),
+            preview_font_size: 15,
         };
         // 直接写临时文件验证序列化/反序列化
         let content = serde_json::to_string_pretty(&settings).unwrap();
@@ -330,6 +334,10 @@ mod tests {
         assert_eq!(loaded.theme, "Light");
         assert_eq!(loaded.language, "zh-CN");
         assert_eq!(loaded.download_dir, "/tmp");
+        assert_eq!(loaded.ui_font_family, "JetBrains Mono");
+        assert_eq!(loaded.ui_font_size, 16);
+        assert_eq!(loaded.preview_font_family, "Fira Code");
+        assert_eq!(loaded.preview_font_size, 15);
         let _ = std::fs::remove_file(&path);
     }
 
@@ -337,5 +345,25 @@ mod tests {
     fn settings_defaults_language_en() {
         assert_eq!(AppSettings::default().language, "en");
         assert_eq!(AppSettings::default().theme, "Dark");
+        assert_eq!(AppSettings::default().ui_font_size, 14);
+        assert_eq!(AppSettings::default().preview_font_size, 13);
+        assert_eq!(AppSettings::default().ui_font_family, "");
+        assert_eq!(AppSettings::default().preview_font_family, "");
+    }
+
+    #[test]
+    fn settings_font_fields_default_for_legacy_json() {
+        // 旧版 settings.json 不含字体字段，应回退到默认值（向后兼容）
+        let json = r#"{
+            "theme": "Dark",
+            "language": "en",
+            "download_dir": "/tmp",
+            "auto_check_update": true
+        }"#;
+        let settings: AppSettings = serde_json::from_str(json).unwrap();
+        assert_eq!(settings.ui_font_family, "");
+        assert_eq!(settings.ui_font_size, 14);
+        assert_eq!(settings.preview_font_family, "");
+        assert_eq!(settings.preview_font_size, 13);
     }
 }

@@ -17,6 +17,7 @@ use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
+use crate::font;
 use crate::icon;
 use crate::message::Message;
 
@@ -63,7 +64,9 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
 
     let panel = column![
         row![
-            text(title).size(18),
+            text(title)
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 18)),
             container(
                 button(dismiss)
                     .style(btn_style)
@@ -75,62 +78,97 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
         .spacing(10)
         .align_y(Alignment::Center),
         rule::horizontal(1),
-        text_input(&t!("name"), &form.name).on_input(|v| {
-            Message::ConnectionFormChanged {
-                field: "name".into(),
-                value: v,
-            }
-        }),
-        text_input(&t!("endpoint_hint"), &form.endpoint).on_input(|v| {
-            Message::ConnectionFormChanged {
-                field: "endpoint".into(),
-                value: v,
-            }
-        }),
+        text_input(&t!("name"), &form.name)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14))
+            .on_input(|v| {
+                Message::ConnectionFormChanged {
+                    field: "name".into(),
+                    value: v,
+                }
+            }),
+        text_input(&t!("endpoint_hint"), &form.endpoint)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14))
+            .on_input(|v| {
+                Message::ConnectionFormChanged {
+                    field: "endpoint".into(),
+                    value: v,
+                }
+            }),
         text(t!("endpoint_protocol_hint").to_string())
-            .size(12)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 12))
             .color(constants::custom_palette(&app.theme).text_secondary),
-        text_input(&t!("region"), &form.region).on_input(|v| {
-            Message::ConnectionFormChanged {
-                field: "region".into(),
-                value: v,
-            }
-        }),
-        text_input(&t!("access_key_id"), &form.access_key_id).on_input(|v| {
-            Message::ConnectionFormChanged {
-                field: "access_key_id".into(),
-                value: v,
-            }
-        }),
-        text_input(&t!("secret_access_key"), &form.secret_access_key).on_input(|v| {
-            Message::ConnectionFormChanged {
-                field: "secret_access_key".into(),
-                value: v,
-            }
-        }),
+        text_input(&t!("region"), &form.region)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14))
+            .on_input(|v| {
+                Message::ConnectionFormChanged {
+                    field: "region".into(),
+                    value: v,
+                }
+            }),
+        text_input(&t!("access_key_id"), &form.access_key_id)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14))
+            .on_input(|v| {
+                Message::ConnectionFormChanged {
+                    field: "access_key_id".into(),
+                    value: v,
+                }
+            }),
+        text_input(&t!("secret_access_key"), &form.secret_access_key)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14))
+            .on_input(|v| {
+                Message::ConnectionFormChanged {
+                    field: "secret_access_key".into(),
+                    value: v,
+                }
+            }),
         text(t!("credentials_plaintext_warning").to_string())
-            .size(12)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 12))
             .color(constants::custom_palette(&app.theme).text_secondary),
         toggler(form.force_path_style)
             .label(t!("force_path_style_label").to_string())
+            .font(font::ui_font(app))
+            .text_size(font::ui_size(app, 14))
             .on_toggle(|b| Message::ConnectionFormChanged {
                 field: "force_path_style".into(),
                 value: b.to_string(),
             }),
         toggler(form.skip_tls_verify)
             .label(t!("skip_tls_verify_label").to_string())
+            .font(font::ui_font(app))
+            .text_size(font::ui_size(app, 14))
             .on_toggle(|b| Message::ConnectionFormChanged {
                 field: "skip_tls_verify".into(),
                 value: b.to_string(),
             }),
         row![
-            button(text(t!("test_connection").to_string()))
-                .style(btn_style)
-                .on_press(Message::ConnectionFormTest),
+            button(
+                text(t!("test_connection").to_string())
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14)),
+            )
+            .style(btn_style)
+            .on_press(Message::ConnectionFormTest),
             container(
                 row![
-                    button(text(t!("save").to_string())).on_press(Message::ConnectionFormSave),
-                    button(text(t!("cancel").to_string())).on_press(Message::ConnectionFormCancel),
+                    button(
+                        text(t!("save").to_string())
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14)),
+                    )
+                    .on_press(Message::ConnectionFormSave),
+                    button(
+                        text(t!("cancel").to_string())
+                            .font(font::ui_font(app))
+                            .size(font::ui_size(app, 14)),
+                    )
+                    .on_press(Message::ConnectionFormCancel),
                 ]
                 .spacing(10)
             )
@@ -165,10 +203,14 @@ pub fn view_connection_form(app: &App) -> Element<'_, Message> {
             };
             let result_widget: Element<'_, Message> = match msg {
                 Some((text_str, color)) => text(text_str)
-                    .size(13)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
                     .style(move |_: &Theme| text::Style { color: Some(color) })
                     .into(),
-                None => text("").size(13).into(),
+                None => text("")
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 13))
+                    .into(),
             };
             result_widget
         },

@@ -4,6 +4,7 @@
 //! - `boot()`：应用入口初始化函数
 //! - `App::load_objects()`：加载 S3 对象列表的辅助方法
 
+use iced::widget::combo_box;
 use iced::{Task, Theme};
 use s3dm_config::ConfigStore;
 use s3dm_core::{CoreError, S3Bucket, S3Manager, S3Object};
@@ -34,6 +35,22 @@ pub struct CopyMoveState {
     /// 是否正在加载子文件夹列表
     pub is_loading_prefixes: bool,
     pub new_name: String,
+}
+
+/// 设置面板的分类页
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SettingsCategory {
+    /// 通用（语言、下载目录）
+    #[default]
+    General,
+    /// 外观（主题、界面字体）
+    Appearance,
+    /// 预览（预览编辑器字体）
+    Preview,
+    /// 更新检查
+    Updates,
+    /// 关于
+    About,
 }
 
 /// 应用主状态结构体，遵循 Elm 架构的 Model 层
@@ -127,6 +144,20 @@ pub struct App {
     pub update_dismissed: bool,
     /// 设置项：启动时是否自动检查更新
     pub auto_check_update: bool,
+    /// 界面字体家族名称（空 = 系统默认）
+    pub ui_font_family: String,
+    /// 界面基础字号（像素）
+    pub ui_font_size: u16,
+    /// 预览编辑器字体家族名称（空 = 系统默认等宽字体）
+    pub preview_font_family: String,
+    /// 预览编辑器字号（像素）
+    pub preview_font_size: u16,
+    /// 界面字体下拉框状态（可输入过滤，选项随语言重建）
+    pub ui_font_combo: combo_box::State<String>,
+    /// 预览编辑器字体下拉框状态
+    pub preview_font_combo: combo_box::State<String>,
+    /// 设置面板当前选中的分类页
+    pub settings_category: SettingsCategory,
     /// 最近一次更新检查的结论（用于设置面板内反馈，None 表示尚未检查）
     pub update_check_status: Option<crate::update::UpdateCheckStatus>,
 }
@@ -210,6 +241,15 @@ pub fn boot() -> (App, Task<Message>) {
 
     let auto_check_update = settings.auto_check_update;
 
+    let ui_font_combo = combo_box::State::with_selection(
+        crate::font::font_options(rust_i18n::t!("settings_font_family_default").as_ref()),
+        Some(&settings.ui_font_family),
+    );
+    let preview_font_combo = combo_box::State::with_selection(
+        crate::font::font_options(rust_i18n::t!("settings_font_family_default_mono").as_ref()),
+        Some(&settings.preview_font_family),
+    );
+
     let app = App {
         config_store: ConfigStore::new(),
         s3_manager: None,
@@ -255,6 +295,13 @@ pub fn boot() -> (App, Task<Message>) {
         checking_update: false,
         update_dismissed: false,
         auto_check_update,
+        ui_font_family: settings.ui_font_family,
+        ui_font_size: settings.ui_font_size,
+        preview_font_family: settings.preview_font_family,
+        preview_font_size: settings.preview_font_size,
+        ui_font_combo,
+        preview_font_combo,
+        settings_category: SettingsCategory::default(),
         update_check_status: None,
     };
 

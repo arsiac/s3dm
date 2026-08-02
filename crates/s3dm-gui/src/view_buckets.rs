@@ -14,6 +14,7 @@ use rust_i18n::t;
 
 use crate::app::App;
 use crate::constants;
+use crate::font;
 use crate::icon;
 use crate::message::Message;
 
@@ -60,12 +61,15 @@ pub fn view_buckets(app: &App) -> Element<'_, Message> {
                 .width(Length::Fixed(16.0))
                 .height(Length::Fixed(16.0))
                 .style(svg_style),
-            text(t!("buckets").to_string()).size(16),
+            text(t!("buckets").to_string())
+                .font(font::ui_font(app))
+                .size(font::ui_size(app, 16)),
         ]
         .spacing(4)
         .align_y(Alignment::Center),
         text(format!("({})", app.buckets.len()))
-            .size(14)
+            .font(font::ui_font(app))
+            .size(font::ui_size(app, 14))
             .color(p.text_secondary),
         container(
             button(refresh_svg)
@@ -88,9 +92,14 @@ pub fn view_buckets(app: &App) -> Element<'_, Message> {
             t!("no_buckets").to_string()
         };
         items.push(
-            container(text(label).size(14).color(p.text_secondary))
-                .padding(Padding::from([8, 16]))
-                .into(),
+            container(
+                text(label)
+                    .font(font::ui_font(app))
+                    .size(font::ui_size(app, 14))
+                    .color(p.text_secondary),
+            )
+            .padding(Padding::from([8, 16]))
+            .into(),
         );
     }
 
@@ -111,7 +120,9 @@ pub fn view_buckets(app: &App) -> Element<'_, Message> {
                         .width(Length::Fixed(14.0))
                         .height(Length::Fixed(14.0))
                         .style(svg_style),
-                    text(&bucket.name).size(14),
+                    text(&bucket.name)
+                        .font(font::ui_font(app))
+                        .size(font::ui_size(app, 14)),
                 ]
                 .spacing(6)
                 .align_y(Alignment::Center),

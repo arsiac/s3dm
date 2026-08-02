@@ -24,6 +24,7 @@ pub const FILE_DEFAULT: &[u8] = include_bytes!("../icons/document-16-filled.svg"
 pub const ICON_DISMISS: &[u8] = include_bytes!("../icons/dismiss-16-filled.svg");
 pub const ICON_ADD: &[u8] = include_bytes!("../icons/add-16-filled.svg");
 pub const ICON_SETTINGS: &[u8] = include_bytes!("../icons/settings-16-filled.svg");
+pub const ICON_IMAGE: &[u8] = include_bytes!("../icons/image-16-filled.svg");
 pub const ICON_EDIT: &[u8] = include_bytes!("../icons/edit-16-filled.svg");
 pub const ICON_DELETE: &[u8] = include_bytes!("../icons/delete-16-filled.svg");
 pub const ICON_REFRESH: &[u8] = include_bytes!("../icons/arrow-clockwise-16-filled.svg");
@@ -42,7 +43,6 @@ pub const ICON_COPY_MOVE: &[u8] = include_bytes!("../icons/copy-move-16-filled.s
 pub const ICON_FOLDER_OPEN: &[u8] = include_bytes!("../icons/folder-open-16-filled.svg");
 /// 对象属性图标
 pub const ICON_INFO: &[u8] = include_bytes!("../icons/info-16-filled.svg");
-
 
 /// 根据文件名返回对应的文件类型图标字节。
 ///
